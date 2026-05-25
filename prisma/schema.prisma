@@ -1,0 +1,754 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  OPS_MANAGER
+  FINANCE
+  VIEWER
+}
+
+enum StoreCategory {
+  ELECTRONICS
+  APPAREL
+  MACHINERY
+  ECO_GOODS
+  FOOD_AND_AG
+  AUTOMOTIVE
+  DECOR
+  COSMETICS
+  LOGISTICS
+}
+
+enum VerificationBadge {
+  TOP_VERIFIED
+  ECO_CERTIFIED
+  PREMIUM_QUALITY
+  ISO_COMPLIANT
+  TIER_1_SUPPLY
+}
+
+enum TradePartnerRole {
+  IMPORT_MANAGER
+  EXPORT_MANAGER
+  TRADE_COORDINATOR
+  WAREHOUSE_MANAGER
+  SALES_REP
+}
+
+enum TradeRelationshipType {
+  SUPPLIER
+  BUYER
+  BOTH
+  LOGISTICS_PARTNER
+}
+
+enum RelationshipStatus {
+  ACTIVE
+  BLOCKED
+  ARCHIVED
+  PENDING
+}
+
+enum InsuranceStatus {
+  COVERED
+  PENDING
+  EXPIRED
+  UNDER_REVIEW
+}
+
+enum VerificationStatus {
+  VERIFIED
+  PENDING
+  REJECTED
+}
+
+enum VesselType {
+  SHIP
+  PLANE
+  TRUCK
+  TRAIN
+}
+
+enum CargoPoolStatus {
+  DRAFT
+  OPEN
+  RESERVED
+  FULL
+  CLOSED
+  CANCELLED
+}
+
+enum ShipmentStatus {
+  DRAFT
+  PENDING_POOLING
+  POOLED
+  BOOKED
+  AWAITING_PAYMENT
+  ESCROW_HELD
+  DEPARTED_ORIGIN
+  IN_TRANSIT
+  ARRIVED_DESTINATION
+  CUSTOMS_HOLD
+  CUSTOMS_RELEASED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum EscrowStatus {
+  NOT_STARTED
+  HOLDING
+  PARTIALLY_RELEASED
+  RELEASED
+  REFUNDED
+  DISPUTED
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+  SYSTEM
+}
+
+enum MessageSenderType {
+  USER
+  TRADE_PARTNER
+  SYSTEM
+}
+
+enum PricingUnit {
+  UNIT
+  METER
+  KILOGRAM
+  LITER
+  TON
+  SHEET
+  SLOT
+  CONTAINER
+  CARTON
+  PACK
+}
+
+enum DocumentType {
+  MANIFEST
+  RECEIPT
+  INVOICE
+  BILL_OF_LADING
+  CUSTOMS_CLEARANCE
+}
+
+enum WebhookEventType {
+  CARGO_ALLOCATION_CREATED
+  PAYMENT_PAID
+  ESCROW_HOLDING
+  SHIPMENT_STATUS_CHANGED
+  SHIPMENT_CUSTOMS_HOLD
+  SHIPMENT_CUSTOMS_RELEASED
+  MANIFEST_READY
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum AuditAction {
+  CREATED
+  UPDATED
+  DELETED
+  STATUS_CHANGED
+  LOGIN
+  LOGOUT
+  PAYMENT_EVENT
+  WEBHOOK_EVENT
+}
+
+enum EventSource {
+  SYSTEM
+  USER
+  CARRIER
+  PAYMENT_PROVIDER
+  WEBHOOK
+}
+
+model Organization {
+  id                  String                   @id @default(cuid())
+  name                String
+  legalName           String?
+  registrationNumber  String?                  @unique
+  countryCode         String                   @db.Char(2)
+  baseCurrency        String                   @db.Char(3)
+  status              OrganizationStatus       @default(ACTIVE)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  users               User[]
+  stores              Store[]
+  tradePartners       TradePartner[]
+  buyerAllocations    CargoAllocation[]
+  paymentIntents      PaymentIntent[]
+  outgoingConversations Conversation[]         @relation("ConversationOwner")
+  incomingConversations Conversation[]         @relation("ConversationCounterparty")
+  webhookEndpoints    WebhookEndpoint[]
+  auditLogs           AuditLog[]
+  notificationPreference NotificationPreference?
+  outgoingRelationships TradeRelationship[]    @relation("RelationshipOwner")
+  incomingRelationships TradeRelationship[]    @relation("RelationshipCounterparty")
+
+  @@map("organizations")
+  @@index([countryCode])
+  @@index([status])
+}
+
+model User {
+  id                String        @id @default(cuid())
+  organizationId    String
+  fullName          String
+  email             String        @unique
+  phone             String?
+  passwordHash      String
+  role              UserRole
+  lastLoginAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAllocations CargoAllocation[] @relation("AllocationCreatedBy")
+  sentMessages      Message[]
+  auditLogs         AuditLog[]
+  authoredRelationships TradeRelationship[] @relation("RelationshipCreatedBy")
+
+  @@map("users")
+  @@index([organizationId])
+  @@index([role])
+}
+
+model Store {
+  id                       String             @id @default(cuid())
+  organizationId           String
+  name                     String
+  slug                     String             @unique
+  countryCode              String             @db.Char(2)
+  city                     String
+  category                 StoreCategory
+  logoUrl                  String?
+  verificationBadge        VerificationBadge?
+  reliabilityScore         Decimal?           @db.Decimal(5, 2)
+  minimumOrderAmountMinor  BigInt?
+  currencyCode             String             @db.Char(3)
+  isActive                 Boolean            @default(true)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  organization             Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products                 Product[]
+  tradePartners            TradePartner[]
+  cargoAllocations         CargoAllocation[]
+  conversations            Conversation[]
+
+  @@map("stores")
+  @@index([organizationId])
+  @@index([category])
+  @@index([countryCode, city])
+  @@index([isActive])
+}
+
+model Product {
+  id                String        @id @default(cuid())
+  storeId           String
+  name              String
+  description       String?
+  sku               String?
+  priceAmountMinor  BigInt
+  currencyCode      String        @db.Char(3)
+  pricingUnit       PricingUnit
+  moqValue          Decimal       @db.Decimal(18, 4)
+  moqUnit           PricingUnit
+  imageUrl          String?
+  isActive          Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  store             Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cargoAllocations  CargoAllocation[]
+  conversations     Conversation[]
+
+  @@map("products")
+  @@index([storeId])
+  @@index([isActive])
+  @@unique([storeId, sku])
+}
+
+model TradePartner {
+  id                String           @id @default(cuid())
+  organizationId    String
+  storeId           String
+  fullName          String
+  email             String
+  phone             String?
+  jobTitle          String?
+  role              TradePartnerRole?
+  isPrimary         Boolean          @default(false)
+  handlesImports    Boolean          @default(false)
+  handlesExports    Boolean          @default(true)
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store             Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  conversations     Conversation[]
+  sentMessages      Message[]        @relation("MessageTradePartnerSender")
+
+  @@map("trade_partners")
+  @@index([organizationId])
+  @@index([storeId])
+  @@index([storeId, isPrimary])
+  @@index([isActive])
+  @@unique([storeId, email])
+}
+
+model TradeRelationship {
+  id                        String               @id @default(cuid())
+  organizationId            String
+  counterpartyOrganizationId String
+  relationshipType          TradeRelationshipType
+  status                    RelationshipStatus   @default(ACTIVE)
+  notes                     String?
+  createdByUserId           String?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+
+  organization              Organization         @relation("RelationshipOwner", fields: [organizationId], references: [id], onDelete: Cascade)
+  counterpartyOrganization  Organization         @relation("RelationshipCounterparty", fields: [counterpartyOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser             User?                @relation("RelationshipCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@map("trade_relationships")
+  @@unique([organizationId, counterpartyOrganizationId])
+  @@index([counterpartyOrganizationId])
+  @@index([status])
+}
+
+model Carrier {
+  id                  String             @id @default(cuid())
+  name                String             @unique
+  insuranceStatus     InsuranceStatus
+  verificationStatus  VerificationStatus
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  vessels             Vessel[]
+  shipments           Shipment[]
+
+  @@map("carriers")
+}
+
+model Vessel {
+  id                    String           @id @default(cuid())
+  carrierId             String
+  name                  String
+  imoNumber             String?          @unique
+  type                  VesselType
+  capacityTeu           Int
+  currentLoadTeu        Int?
+  utilizationPercent    Decimal?         @db.Decimal(5, 2)
+  avgSpeedKnots         Decimal?         @db.Decimal(6, 2)
+  isActive              Boolean          @default(true)
+  currentLat            Decimal?         @db.Decimal(9, 6)
+  currentLng            Decimal?         @db.Decimal(9, 6)
+  currentHeadingDegrees Decimal?         @db.Decimal(6, 2)
+  lastTelemetryAt       DateTime?
+  imageUrl              String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  carrier               Carrier          @relation(fields: [carrierId], references: [id], onDelete: Restrict)
+  cargoPools            CargoPool[]
+  shipments             Shipment[]
+
+  @@map("vessels")
+  @@unique([carrierId, name])
+  @@index([carrierId])
+  @@index([isActive])
+}
+
+model Port {
+  id                 String            @id @default(cuid())
+  code               String            @unique @db.VarChar(10)
+  name               String
+  countryCode        String            @db.Char(2)
+  lat                Decimal           @db.Decimal(9, 6)
+  lng                Decimal           @db.Decimal(9, 6)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  originRoutes       ShipmentRoute[]   @relation("RouteOriginPort")
+  destinationRoutes  ShipmentRoute[]   @relation("RouteDestinationPort")
+  departurePools     CargoPool[]       @relation("PoolDeparturePort")
+  arrivalPools       CargoPool[]       @relation("PoolArrivalPort")
+  shipmentOrigins    Shipment[]        @relation("ShipmentOriginPort")
+  shipmentDestinations Shipment[]      @relation("ShipmentDestinationPort")
+  shipmentEvents     ShipmentEvent[]
+
+  @@map("ports")
+  @@index([countryCode])
+}
+
+model ShipmentRoute {
+  id                 String           @id @default(cuid())
+  originPortId       String
+  destinationPortId  String
+  checkpointsJson    Json?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  originPort         Port             @relation("RouteOriginPort", fields: [originPortId], references: [id], onDelete: Restrict)
+  destinationPort    Port             @relation("RouteDestinationPort", fields: [destinationPortId], references: [id], onDelete: Restrict)
+  cargoPools         CargoPool[]
+
+  @@map("shipment_routes")
+  @@index([originPortId])
+  @@index([destinationPortId])
+}
+
+model CargoPool {
+  id                    String            @id @default(cuid())
+  routeId               String?
+  vesselId              String?
+  departurePortId       String
+  arrivalPortId         String
+  departureEtaAt        DateTime?
+  arrivalEtaAt          DateTime?
+  totalCapacityUnits    Decimal           @db.Decimal(18, 4)
+  reservedCapacityUnits Decimal           @default(0) @db.Decimal(18, 4)
+  status                CargoPoolStatus   @default(DRAFT)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  route                 ShipmentRoute?    @relation(fields: [routeId], references: [id], onDelete: SetNull)
+  vessel                Vessel?           @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+  departurePort         Port              @relation("PoolDeparturePort", fields: [departurePortId], references: [id], onDelete: Restrict)
+  arrivalPort           Port              @relation("PoolArrivalPort", fields: [arrivalPortId], references: [id], onDelete: Restrict)
+  cargoAllocations      CargoAllocation[]
+  shipments             Shipment[]
+
+  @@map("cargo_pools")
+  @@index([routeId])
+  @@index([vesselId])
+  @@index([status])
+  @@index([departurePortId, arrivalPortId])
+}
+
+model CargoAllocation {
+  id                   String           @id @default(cuid())
+  organizationId       String
+  cargoPoolId          String
+  storeId              String
+  productId            String
+  quantity             Decimal          @db.Decimal(18, 4)
+  quantityUnit         PricingUnit
+  status               ShipmentStatus   @default(PENDING_POOLING)
+  quotedAmountMinor    BigInt?
+  finalAmountMinor     BigInt?
+  currencyCode         String           @db.Char(3)
+  createdByUserId      String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  organization         Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cargoPool            CargoPool        @relation(fields: [cargoPoolId], references: [id], onDelete: Restrict)
+  store                Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product              Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdByUser        User?            @relation("AllocationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  landedCostBreakdown  LandedCostBreakdown?
+  paymentIntents       PaymentIntent[]
+  manifestDocuments    ManifestDocument[]
+
+  @@map("cargo_allocations")
+  @@index([organizationId])
+  @@index([cargoPoolId])
+  @@index([storeId])
+  @@index([productId])
+  @@index([status])
+}
+
+model Shipment {
+  id                  String           @id @default(cuid())
+  cargoPoolId         String
+  referenceCode       String           @unique
+  status              ShipmentStatus
+  originPortId        String
+  destinationPortId   String
+  carrierId           String?
+  vesselId            String?
+  bookedAt            DateTime?
+  departedAt          DateTime?
+  arrivedAt           DateTime?
+  deliveredAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  cargoPool           CargoPool        @relation(fields: [cargoPoolId], references: [id], onDelete: Restrict)
+  originPort          Port             @relation("ShipmentOriginPort", fields: [originPortId], references: [id], onDelete: Restrict)
+  destinationPort     Port             @relation("ShipmentDestinationPort", fields: [destinationPortId], references: [id], onDelete: Restrict)
+  carrier             Carrier?         @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  vessel              Vessel?          @relation(fields: [vesselId], references: [id], onDelete: SetNull)
+  shipmentEvents      ShipmentEvent[]
+  manifestDocuments   ManifestDocument[]
+
+  @@map("shipments")
+  @@index([cargoPoolId])
+  @@index([status])
+  @@index([originPortId, destinationPortId])
+}
+
+model ShipmentEvent {
+  id            String       @id @default(cuid())
+  shipmentId    String
+  eventType     String
+  occurredAt    DateTime
+  portId        String?
+  notes         String?
+  metadataJson  Json?
+  source        EventSource  @default(SYSTEM)
+  createdAt     DateTime     @default(now())
+
+  shipment      Shipment     @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  port          Port?        @relation(fields: [portId], references: [id], onDelete: SetNull)
+
+  @@map("shipment_events")
+  @@index([shipmentId, occurredAt])
+  @@index([eventType])
+}
+
+model LandedCostBreakdown {
+  id                String          @id @default(cuid())
+  cargoAllocationId String          @unique
+  baseCostMinor     BigInt
+  tariffRateBps     Int
+  tariffAmountMinor BigInt
+  customsFeeMinor   BigInt
+  vatRateBps        Int
+  vatAmountMinor    BigInt
+  otherFeeMinor     BigInt          @default(0)
+  totalAmountMinor  BigInt
+  currencyCode      String          @db.Char(3)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  cargoAllocation   CargoAllocation @relation(fields: [cargoAllocationId], references: [id], onDelete: Cascade)
+
+  @@map("landed_cost_breakdowns")
+}
+
+model PaymentIntent {
+  id                 String         @id @default(cuid())
+  organizationId     String
+  cargoAllocationId  String
+  provider           String
+  providerReference  String?        @unique
+  amountMinor        BigInt
+  currencyCode       String         @db.Char(3)
+  status             PaymentStatus  @default(PENDING)
+  checkoutUrl        String?
+  expiresAt          DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cargoAllocation    CargoAllocation @relation(fields: [cargoAllocationId], references: [id], onDelete: Restrict)
+  escrowRecord       EscrowRecord?
+
+  @@map("payment_intents")
+  @@index([organizationId])
+  @@index([cargoAllocationId])
+  @@index([status])
+}
+
+model EscrowRecord {
+  id                 String        @id @default(cuid())
+  paymentIntentId    String        @unique
+  status             EscrowStatus  @default(NOT_STARTED)
+  heldAmountMinor    BigInt
+  releasedAmountMinor BigInt       @default(0)
+  releasedAt         DateTime?
+  releaseCondition   String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  paymentIntent      PaymentIntent @relation(fields: [paymentIntentId], references: [id], onDelete: Cascade)
+
+  @@map("escrow_records")
+  @@index([status])
+}
+
+model ManifestDocument {
+  id                String        @id @default(cuid())
+  shipmentId        String?
+  cargoAllocationId String?
+  documentType      DocumentType
+  storageKey        String        @unique
+  mimeType          String
+  generatedAt       DateTime      @default(now())
+  createdAt         DateTime      @default(now())
+
+  shipment          Shipment?     @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  cargoAllocation   CargoAllocation? @relation(fields: [cargoAllocationId], references: [id], onDelete: SetNull)
+
+  @@map("manifest_documents")
+  @@index([shipmentId])
+  @@index([cargoAllocationId])
+  @@index([documentType])
+}
+
+model Conversation {
+  id                        String              @id @default(cuid())
+  organizationId            String
+  counterpartyOrganizationId String
+  storeId                   String
+  productId                 String?
+  tradePartnerId            String
+  subject                   String
+  status                    ConversationStatus  @default(OPEN)
+  lastMessageAt             DateTime?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  organization              Organization        @relation("ConversationOwner", fields: [organizationId], references: [id], onDelete: Cascade)
+  counterpartyOrganization  Organization        @relation("ConversationCounterparty", fields: [counterpartyOrganizationId], references: [id], onDelete: Cascade)
+  store                     Store               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  product                   Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
+  tradePartner              TradePartner        @relation(fields: [tradePartnerId], references: [id], onDelete: Restrict)
+  messages                  Message[]
+
+  @@map("conversations")
+  @@index([organizationId])
+  @@index([counterpartyOrganizationId])
+  @@index([storeId])
+  @@index([tradePartnerId])
+  @@index([status])
+}
+
+model Message {
+  id                   String            @id @default(cuid())
+  conversationId       String
+  senderType           MessageSenderType
+  senderUserId         String?
+  senderTradePartnerId String?
+  direction            MessageDirection
+  body                 String
+  sentAt               DateTime          @default(now())
+  readAt               DateTime?
+
+  conversation         Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUser           User?             @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
+  senderTradePartner   TradePartner?     @relation("MessageTradePartnerSender", fields: [senderTradePartnerId], references: [id], onDelete: SetNull)
+
+  @@map("messages")
+  @@index([conversationId, sentAt])
+  @@index([senderUserId])
+  @@index([senderTradePartnerId])
+}
+
+model NotificationPreference {
+  id                   String         @id @default(cuid())
+  organizationId       String         @unique
+  notifyEmail          Boolean        @default(true)
+  notifySms            Boolean        @default(false)
+  notifyCustomsHold    Boolean        @default(true)
+  notifyManifestReady  Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  organization         Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model WebhookEndpoint {
+  id                 String              @id @default(cuid())
+  organizationId     String
+  targetUrl          String
+  secret             String
+  isActive           Boolean             @default(true)
+  subscribedEvents   WebhookEventType[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries         WebhookDelivery[]
+
+  @@map("webhook_endpoints")
+  @@index([organizationId])
+  @@index([isActive])
+}
+
+model WebhookDelivery {
+  id                 String                @id @default(cuid())
+  webhookEndpointId  String
+  eventType          WebhookEventType
+  payloadJson        Json
+  responseStatusCode Int?
+  responseBody       String?
+  attemptCount       Int                   @default(0)
+  deliveredAt        DateTime?
+  nextRetryAt        DateTime?
+  status             WebhookDeliveryStatus @default(PENDING)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  webhookEndpoint    WebhookEndpoint       @relation(fields: [webhookEndpointId], references: [id], onDelete: Cascade)
+
+  @@map("webhook_deliveries")
+  @@index([webhookEndpointId])
+  @@index([status])
+  @@index([eventType])
+}
+
+model AuditLog {
+  id              String       @id @default(cuid())
+  organizationId  String
+  actorUserId     String?
+  action          AuditAction
+  entityType      String
+  entityId        String
+  metadataJson    Json?
+  createdAt       DateTime     @default(now())
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser       User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+}
