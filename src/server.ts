@@ -36,10 +36,10 @@ app.get('/', (req: Request, res: Response) => {
 
 app.use('/api/user', authGuard, userRoute.default);
 app.use('/api/marketplace', authGuard, marketplaceRoute.default);
-app.use('/api/cargo', cargoRoute.default)
-app.use('/api/payment', paymentRoute.default);
-app.use('/api/carrier', carrierRoute.default);
-app.use('/api/shipment', shipmentRoute.default);
+app.use('/api/cargo', authGuard, cargoRoute.default)
+app.use('/api/payment', authGuard, paymentRoute.default);
+app.use('/api/carrier', authGuard, carrierRoute.default);
+app.use('/api/shipment', authGuard, shipmentRoute.default);
 
 // app.use('/api/messaging', messagingRoute.default);
 // app.use('/tracking', trackingWebhook.default);

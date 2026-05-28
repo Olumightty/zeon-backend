@@ -9,6 +9,10 @@ import {
   updateWebhook,
   updateUserProfile,
 } from "./user.controller";
+import {
+  updateNotificationSettingsValidator,
+  updateUserProfileValidator,
+} from "./user.validator";
 const router = Router();
 
 //business facing API
@@ -17,13 +21,13 @@ const router = Router();
 router.get("/", getUserProfile);
 
 // update user profile (only the user can update their own profile)
-router.patch("/", updateUserProfile);
+router.patch("/", updateUserProfileValidator, updateUserProfile);
 
 // get notification settings for the user (only the user can see their own notification settings)
 router.get("/settings/notifications", getNotificationSettings);
 
 // update notification settings for the user (only the user can update their own notification settings)
-router.patch("/settings/notifications", updateNotificationSettings);
+router.patch("/settings/notifications", updateNotificationSettingsValidator, updateNotificationSettings);
 
 // // get webhooks for the user (only the user can see their own webhooks)
 // router.get('/settings/webhooks', getWebhooks);
