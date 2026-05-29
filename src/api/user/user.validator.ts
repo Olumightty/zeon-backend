@@ -17,7 +17,7 @@ export const updateUserProfileValidator = [
   body("firstName").optional({ nullable: true }).trim().isLength({ min: 1, max: 80 }).escape(),
   body("lastName").optional({ nullable: true }).trim().isLength({ min: 1, max: 80 }).escape(),
   body("phone").optional({ nullable: true }).trim().isLength({ min: 5, max: 30 }).escape(),
-  body("profileImageUrl").optional({ nullable: true }).trim().isURL().escape(),
+  body("profileImageUrl").optional({ nullable: true }).trim().isURL(),
   validateRequest,
 ];
 

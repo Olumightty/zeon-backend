@@ -1,5 +1,7 @@
 import { prisma } from "../../lib/prisma";
 
+
+//come bavck and adapt logic for organizations as well when we have that in place
 export const findUserById = async (id: string) => {
   return await prisma.user.findUnique({
     where: {

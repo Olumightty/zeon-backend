@@ -1,5 +1,34 @@
 import { Router } from 'express';
-import {createProductByStoreId,createStore,createTradePartnerByStoreId,deleteProductById, deleteStoreById, deleteTradePartnerById, getProductById, getProductsByStoreId, getStoreById, getStores, getTradePartnerById, getTradePartnersByStoreId, updateProductById, updateStoreById, updateTradePartnerById} from './marketplace.controller';
+import {
+    createProductByStoreId,
+    createStore,
+    createTradePartnerByStoreId,
+    deleteProductById,
+    deleteStoreById,
+    deleteTradePartnerById,
+    getProductById,
+    getProductsByStoreId,
+    getStoreById,
+    getStores,
+    getTradePartnerById,
+    getTradePartnersByStoreId,
+    updateProductById,
+    updateStoreById,
+    updateTradePartnerById
+} from './marketplace.controller';
+import {
+    createProductValidator,
+    createStoreValidator,
+    createTradePartnerValidator,
+    getProductsValidator,
+    getStoresValidator,
+    productIdValidator,
+    storeIdValidator,
+    tradePartnerIdValidator,
+    updateProductValidator,
+    updateStoreValidator,
+    updateTradePartnerValidator,
+} from './marketplace.validator';
 const router = Router();
 
 //business facing API
@@ -11,48 +40,48 @@ const router = Router();
 
 
 //list of stores in marketplace (add search and filter logic) (visible to everyone in the marketplace)
-router.get('/stores', getStores); 
+router.get('/stores', getStoresValidator, getStores); 
 
 // create a new store in the marketplace (only users without an organization and owners and admins of an organization can create a store in the marketplace, the store will be associated with the user account if the user does not belong to an organization, otherwise it will be associated with the organization)
-router.post('/stores', createStore); 
+router.post('/stores', createStoreValidator, createStore); 
 
 // get a specific store by id (visible to everyone in the marketplace)
-router.get('/stores/:id', getStoreById);
+router.get('/stores/:id', storeIdValidator, getStoreById);
 
 // update a specific store by id (only the owner and admins (user) of the store can update it)
-router.patch('/stores/:id', updateStoreById);
+router.patch('/stores/:id', updateStoreValidator, updateStoreById);
 
 // delete a specific store by id (only the owner and admins (user) of the store can delete it)
-router.delete('/stores/:id', deleteStoreById);
+router.delete('/stores/:id', storeIdValidator, deleteStoreById);
 
 // list of products in a specific store , add search and filter logic (visible to everyone in the marketplace)
-router.get('/stores/:id/products', getProductsByStoreId);
+router.get('/stores/:id/products', getProductsValidator, getProductsByStoreId);
 
 // create a new product in a specific store (only the owner and admins (user) of the store can create a product in the store)
-router.post('/stores/:id/products', createProductByStoreId);
+router.post('/stores/:id/products', createProductValidator, createProductByStoreId);
 
 // get a specific product by id in a specific store (visible to everyone in the marketplace)
-router.get('/stores/:id/products/:pid', getProductById);
+router.get('/stores/:id/products/:pid', productIdValidator, getProductById);
 
 // update a specific product by id in a specific store (only the owner and admins (user) of the store can update it)
-router.patch('/stores/:id/products/:pid', updateProductById);
+router.patch('/stores/:id/products/:pid', updateProductValidator, updateProductById);
 
 // delete a specific product by id in a specific store (only the owner and admins (user) of the store can delete it)
-router.delete('/stores/:id/products/:id', deleteProductById);
+router.delete('/stores/:id/products/:pid', productIdValidator, deleteProductById);
 
 // list of trade partners for a specific store (visible to everyone in the marketplace)
-router.get('/stores/:id/trade-partners', getTradePartnersByStoreId);
+router.get('/stores/:id/trade-partners', storeIdValidator, getTradePartnersByStoreId);
 
 // get a specific trade partner by id in a specific store (visible to everyone in the marketplace)
-router.get('/stores/:id/trade-partners/:tpid', getTradePartnerById);
+router.get('/stores/:id/trade-partners/:tpid', tradePartnerIdValidator, getTradePartnerById);
 
 // create a new trade partner for a specific store (only the owner and admins (user) of the store can create a trade partner in the store)
-router.post('/stores/:id/trade-partners', createTradePartnerByStoreId);
+router.post('/stores/:id/trade-partners', createTradePartnerValidator, createTradePartnerByStoreId);
 
 // update a specific trade partner by id in a specific store (only the owner and admins (user) of the store can update it)
-router.patch('/stores/:id/trade-partners/:tpid', updateTradePartnerById);
+router.patch('/stores/:id/trade-partners/:tpid', updateTradePartnerValidator, updateTradePartnerById);
 
 // delete a specific trade partner by id in a specific store (only the owner and admins (user) of the store can delete it)
-router.delete('/stores/:id/trade-partners/:tpid', deleteTradePartnerById);
+router.delete('/stores/:id/trade-partners/:tpid', tradePartnerIdValidator, deleteTradePartnerById);
 
 export default router;

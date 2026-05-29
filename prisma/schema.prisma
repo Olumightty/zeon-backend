@@ -319,7 +319,7 @@ model Product {
   updatedAt        DateTime    @updatedAt
 
   store            Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  cargoAllocations CargoAllocation[]
+  cargoAllocationItems CargoAllocationItem[]
   conversations    Conversation[]
 
   @@unique([storeId, sku])
@@ -491,11 +491,8 @@ model CargoPool {
 model CargoAllocation {
   id                String         @id @default(cuid())
   organizationId    String?
-  cargoPoolId       String
+  cargoPoolId       String?
   storeId           String
-  productId         String
-  quantity          Decimal        @db.Decimal(18, 4)
-  quantityUnit      PricingUnit
   status            ShipmentStatus @default(PENDING_POOLING)
   quotedAmountMinor BigInt?
   finalAmountMinor  BigInt?
@@ -505,10 +502,10 @@ model CargoAllocation {
   updatedAt         DateTime       @updatedAt
 
   organization        Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  cargoPool           CargoPool            @relation(fields: [cargoPoolId], references: [id], onDelete: Restrict)
+  cargoPool           CargoPool?            @relation(fields: [cargoPoolId], references: [id], onDelete: Restrict)
   store               Store                @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  product             Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
   createdByUser       User?                @relation("AllocationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  items               CargoAllocationItem[]
   landedCostBreakdown LandedCostBreakdown?
   paymentIntents      PaymentIntent[]
   manifestDocuments   ManifestDocument[]
@@ -516,9 +513,26 @@ model CargoAllocation {
   @@index([organizationId])
   @@index([cargoPoolId])
   @@index([storeId])
-  @@index([productId])
   @@index([status])
   @@map("cargo_allocations")
+}
+
+model CargoAllocationItem {
+  id                String          @id @default(cuid())
+  cargoAllocationId String
+  productId         String
+  quantity          Decimal         @db.Decimal(18, 4)
+  quantityUnit      PricingUnit
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  cargoAllocation   CargoAllocation @relation(fields: [cargoAllocationId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([cargoAllocationId, productId])
+  @@index([cargoAllocationId])
+  @@index([productId])
+  @@map("cargo_allocation_items")
 }
 
 model Shipment {
