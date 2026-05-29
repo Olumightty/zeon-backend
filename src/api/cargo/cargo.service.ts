@@ -104,7 +104,7 @@ export const findMembership = async (userId: string, organizationId: string) => 
   });
 };
 
-export const canCreateOrganizationCargo = async (userId: string, organizationId: string) => {
+export const canManageOrganizationCargo = async (userId: string, organizationId: string) => {
   const membership = await findMembership(userId, organizationId);
   return membership?.role === "OWNER" || membership?.role === "ADMIN" || membership?.role === "OPS_MANAGER";
 };

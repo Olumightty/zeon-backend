@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import {
   cancelCargoAllocationService,
-  canCreateOrganizationCargo,
+  canManageOrganizationCargo,
   createCargoAllocationService,
   findCargoAllocationById,
   findProductsForStore,
@@ -70,9 +70,9 @@ export const createCargoAllocation = async (req: Request, res: Response) => {
     }
 
     if (auth.orgId) {
-      const canCreateCargo = await canCreateOrganizationCargo(auth.userId, auth.orgId);
-      if (!canCreateCargo) {
-        return res.status(403).json({ message: "You cannot create cargo allocations for this organization", status: false });
+      const canManageCargo = await canManageOrganizationCargo(auth.userId, auth.orgId);
+      if (!canManageCargo) {
+        return res.status(403).json({ message: "You cannot manage cargo allocations for this organization", status: false });
       }
     }
 
@@ -222,6 +222,13 @@ export const updateCargoAllocation = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid request parameters", status: false });
     }
 
+    if (auth.orgId) {
+      const canManageCargo = await canManageOrganizationCargo(auth.userId, auth.orgId);
+      if (!canManageCargo) {
+        return res.status(403).json({ message: "You cannot manage cargo allocations for this organization", status: false });
+      }
+    }
+
     const existingAllocation = await findCargoAllocationById(getParam(req, "id"), auth);
     if (!existingAllocation) {
       return res.status(404).json({ message: "Cargo allocation not found", status: false });
@@ -276,6 +283,13 @@ export const cancelCargoAllocation = async (req: Request, res: Response) => {
     const auth = getAuthUser(req);
     if (!auth) {
       return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    if (auth.orgId) {
+      const canManageCargo = await canManageOrganizationCargo(auth.userId, auth.orgId);
+      if (!canManageCargo) {
+        return res.status(403).json({ message: "You cannot manage cargo allocations for this organization", status: false });
+      }
     }
 
     const result = await cancelCargoAllocationService(getParam(req, "id"), auth);
