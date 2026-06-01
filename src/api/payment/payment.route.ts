@@ -1,7 +1,12 @@
 import { Router } from 'express';
-import {cancelPaymentIntentById, getEscrowDetailsByIntentId, getPaymentIntentById} from './payment.controller';
-import { escrowIntentIdValidator, paymentIntentIdValidator } from './payment.validator';
+import {cancelPaymentIntentById, getEscrowDetailsByIntentId, getPaymentIntentById, updateCostBreakdown} from './payment.controller';
+import { escrowIntentIdValidator, paymentIntentIdValidator, updateCostBreakdownValidator } from './payment.validator';
 const router = Router();
+
+// business facing API
+
+// when a negotiation happens and a new cost for the cargo allocation is agreed upon, the owner or admin or finance of the store can edit the cost breakdown
+router.patch('/breakdown', updateCostBreakdownValidator, updateCostBreakdown)
 
 // get a specific payment intent by id (only the owner and admins (user) of the cargo allocation can get the payment intent for it)
 router.get('/intents/:id', paymentIntentIdValidator, getPaymentIntentById);

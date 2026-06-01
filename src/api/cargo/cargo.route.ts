@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import {cancelCargoAllocation, checkoutCargoAllocation, createCargoAllocation, getCargoAllocationById, getCargoAllocations, updateCargoAllocation} from './cargo.controller';
+import {cancelCargoAllocation, checkoutCargoAllocation, confirmCargoAllocation, createCargoAllocation, getCargoAllocationById, getCargoAllocations, updateCargoAllocation} from './cargo.controller';
 import {
     cargoAllocationIdValidator,
     checkoutCargoAllocationValidator,
@@ -16,8 +16,11 @@ router.post('/allocation', createCargoAllocationValidator, createCargoAllocation
 // get all cargo allocations (user/organization scoped), be able to query them based on status (draft, awaiting_payment, pending_pooling, pooled, in_transit, delivered, cancelled)
 router.get('/allocation', getCargoAllocationsValidator, getCargoAllocations);
 
-// checkout a cargo allocation that is in draft status, this is the step where a cost breakdown and payment intent is generated (by functions to be implemented in payment.service file), and the cargo allocations will become awaiting_payment status
+// checkout a cargo allocation that is in draft status, this is the step where a cost breakdown is generated (by function already implemented in payment.service file)
 router.post('/allocation/checkout', checkoutCargoAllocationValidator, checkoutCargoAllocation);
+
+// because we want to make room for negotiation of price between the user and the supplier, this is the step where the cargo allocation is confirmed such that before confirmation, the price can be negotiated between the user and the supplier (trade partner of that store) and they can edit the cost breakdown (only values within the suppliers control, this will be a separate endpoint to be implemented later), but once confirmed, the price is fixed and the payment intent will now be created (by a function already implemented in payment.service file) and the cargo allocations will become awaiting_payment status
+router.post('/allocation/:id/confirm', cargoAllocationIdValidator, confirmCargoAllocation);
 
 // get a specific cargo allocation by ID
 router.get('/allocation/:id', cargoAllocationIdValidator, getCargoAllocationById);

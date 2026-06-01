@@ -13,6 +13,14 @@ type CheckoutCostInput = {
   otherFeeMinor?: number;
 };
 
+type UpdateCostBreakdownInput = {
+  baseCostMinor?: number;
+  tariffRateBps?: number;
+  customsFeeMinor?: number;
+  vatRateBps?: number;
+  otherFeeMinor?: number;
+};
+
 const paymentIntentInclude = {
   cargoAllocation: {
     include: {
@@ -58,6 +66,53 @@ export const findUserById = async (id: string) => {
   return await prisma.user.findUnique({
     where: {
       id,
+    },
+  });
+};
+
+export const findMembership = async (userId: string, organizationId: string) => {
+  return await prisma.membership.findUnique({
+    where: {
+      userId_organizationId: {
+        userId,
+        organizationId,
+      },
+    },
+  });
+};
+
+export const canManageStoreCostBreakdown = async (
+  auth: AuthUser,
+  store: {
+    userId: string | null;
+    organizationId: string | null;
+  },
+) => {
+  if (store.userId && store.userId === auth.userId) {
+    return true;
+  }
+
+  if (store.organizationId && auth.orgId && store.organizationId === auth.orgId) {
+    const membership = await findMembership(auth.userId, store.organizationId);
+    return membership?.role === "OWNER" || membership?.role === "ADMIN" || membership?.role === "FINANCE";
+  }
+
+  return false;
+};
+
+export const findCargoAllocationForCostBreakdown = async (id: string) => {
+  return await prisma.cargoAllocation.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      store: true,
+      landedCostBreakdown: true,
+      paymentIntents: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
     },
   });
 };
@@ -113,6 +168,55 @@ export const createLandedCostBreakdownService = async (
       otherFeeMinor,
       totalAmountMinor,
       currencyCode: cargoAllocation.currencyCode,
+    },
+  });
+};
+
+export const updateCostBreakdownService = async (
+  cargoAllocationId: string,
+  auth: AuthUser,
+  input: UpdateCostBreakdownInput,
+) => {
+  const cargoAllocation = await findCargoAllocationForCostBreakdown(cargoAllocationId);
+  if (!cargoAllocation) {
+    return null;
+  }
+
+  const canManageBreakdown = await canManageStoreCostBreakdown(auth, cargoAllocation.store);
+  if (!canManageBreakdown) {
+    return "FORBIDDEN" as const;
+  }
+
+  if (cargoAllocation.status !== "DRAFT") {
+    return "INVALID_STATUS" as const;
+  }
+
+  if (!cargoAllocation.landedCostBreakdown) {
+    return "BREAKDOWN_NOT_FOUND" as const;
+  }
+
+  const baseCostMinor = BigInt(input.baseCostMinor ?? Number(cargoAllocation.landedCostBreakdown.baseCostMinor));
+  const tariffRateBps = input.tariffRateBps ?? cargoAllocation.landedCostBreakdown.tariffRateBps;
+  const customsFeeMinor = BigInt(input.customsFeeMinor ?? Number(cargoAllocation.landedCostBreakdown.customsFeeMinor));
+  const vatRateBps = input.vatRateBps ?? cargoAllocation.landedCostBreakdown.vatRateBps;
+  const otherFeeMinor = BigInt(input.otherFeeMinor ?? Number(cargoAllocation.landedCostBreakdown.otherFeeMinor));
+  const tariffAmountMinor = minorFromBps(baseCostMinor, tariffRateBps);
+  const vatAmountMinor = minorFromBps(baseCostMinor + tariffAmountMinor + customsFeeMinor + otherFeeMinor, vatRateBps);
+  const totalAmountMinor = baseCostMinor + tariffAmountMinor + customsFeeMinor + vatAmountMinor + otherFeeMinor;
+
+  return await prisma.landedCostBreakdown.update({
+    where: {
+      cargoAllocationId,
+    },
+    data: {
+      baseCostMinor,
+      tariffRateBps,
+      tariffAmountMinor,
+      customsFeeMinor,
+      vatRateBps,
+      vatAmountMinor,
+      otherFeeMinor,
+      totalAmountMinor,
     },
   });
 };

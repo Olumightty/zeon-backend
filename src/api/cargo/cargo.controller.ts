@@ -139,6 +139,13 @@ export const checkoutCargoAllocation = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Unauthorized", status: false });
     }
 
+    if (auth.orgId) {
+      const canManageCargo = await canManageOrganizationCargo(auth.userId, auth.orgId);
+      if (!canManageCargo) {
+        return res.status(403).json({ message: "You cannot manage cargo allocations for this organization", status: false });
+      }
+    }
+
     const cargoAllocation = await findCargoAllocationById(req.body.allocationId, auth);
     if (!cargoAllocation) {
       return res.status(404).json({ message: "Cargo allocation not found", status: false });
@@ -159,11 +166,53 @@ export const checkoutCargoAllocation = async (req: Request, res: Response) => {
       otherFeeMinor: req.body.otherFeeMinor,
     });
 
+    return res.status(200).json({
+      message: "Cargo allocation cost breakdown generated successfully",
+      status: true,
+      data: jsonSafe(landedCostBreakdown),
+    });
+  } catch (error) {
+    console.error("Checkout cargo allocation error:", error);
+    return res.status(500).json({ message: "Unable to process request", status: false });
+  }
+};
+
+export const confirmCargoAllocation = async (req: Request, res: Response) => {
+  try {
+    const auth = getAuthUser(req);
+    if (!auth) {
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    if (auth.orgId) {
+      const canManageCargo = await canManageOrganizationCargo(auth.userId, auth.orgId);
+      if (!canManageCargo) {
+        return res.status(403).json({ message: "You cannot manage cargo allocations for this organization", status: false });
+      }
+    }
+
+    const cargoAllocation = await findCargoAllocationById(getParam(req, "id"), auth);
+    if (!cargoAllocation) {
+      return res.status(404).json({ message: "Cargo allocation not found", status: false });
+    }
+
+    if (cargoAllocation.status !== "DRAFT") {
+      return res.status(400).json({ message: "Only draft cargo allocations can be confirmed", status: false });
+    }
+
+    if (cargoAllocation.items.length === 0) {
+      return res.status(400).json({ message: "Cargo allocation has no items", status: false });
+    }
+
+    if (!cargoAllocation.landedCostBreakdown) {
+      return res.status(400).json({ message: "Cargo allocation must be checked out before confirmation", status: false });
+    }
+
     const paymentIntent = await createPaymentIntentService(auth, {
       cargoAllocationId: cargoAllocation.id,
-      amountMinor: landedCostBreakdown.totalAmountMinor,
-      currencyCode: landedCostBreakdown.currencyCode,
-      description: `Cargo allocation checkout for ${cargoAllocation.store.name}`,
+      amountMinor: cargoAllocation.landedCostBreakdown.totalAmountMinor,
+      currencyCode: cargoAllocation.landedCostBreakdown.currencyCode,
+      description: `Cargo allocation payment for ${cargoAllocation.store.name}`,
     });
 
     if (paymentIntent === "USER_NOT_FOUND") {
@@ -175,15 +224,12 @@ export const checkoutCargoAllocation = async (req: Request, res: Response) => {
     }
 
     return res.status(200).json({
-      message: "Cargo allocation checkout created successfully",
+      message: "Cargo allocation confirmed successfully",
       status: true,
-      data: jsonSafe({
-        landedCostBreakdown,
-        paymentIntent,
-      }),
+      data: jsonSafe(paymentIntent),
     });
   } catch (error) {
-    console.error("Checkout cargo allocation error:", error);
+    console.error("Confirm cargo allocation error:", error);
     return res.status(500).json({ message: "Unable to process request", status: false });
   }
 };

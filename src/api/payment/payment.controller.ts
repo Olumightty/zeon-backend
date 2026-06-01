@@ -3,6 +3,7 @@ import {
     cancelPaymentIntentService,
     findEscrowByPaymentIntentId,
     findPaymentIntentById,
+    updateCostBreakdownService,
 } from "./payment.service";
 
 const jsonSafe = (data: unknown) => {
@@ -29,6 +30,58 @@ const getParam = (req: Request, key: string) => {
     const value = req.params[key];
     return Array.isArray(value) ? value[0] || "" : value || "";
 };
+
+export const updateCostBreakdown = async (req: Request, res: Response) => {
+    try {
+        const auth = getAuthUser(req);
+        if (!auth) {
+            return res.status(401).json({ message: "Unauthorized", status: false });
+        }
+
+        if (
+            req.body.baseCostMinor === undefined &&
+            req.body.tariffRateBps === undefined &&
+            req.body.customsFeeMinor === undefined &&
+            req.body.vatRateBps === undefined &&
+            req.body.otherFeeMinor === undefined
+        ) {
+            return res.status(400).json({ message: "Invalid request parameters", status: false });
+        }
+
+        const result = await updateCostBreakdownService(req.body.cargoAllocationId, auth, {
+            ...(req.body.baseCostMinor !== undefined && { baseCostMinor: req.body.baseCostMinor }),
+            ...(req.body.tariffRateBps !== undefined && { tariffRateBps: req.body.tariffRateBps }),
+            ...(req.body.customsFeeMinor !== undefined && { customsFeeMinor: req.body.customsFeeMinor }),
+            ...(req.body.vatRateBps !== undefined && { vatRateBps: req.body.vatRateBps }),
+            ...(req.body.otherFeeMinor !== undefined && { otherFeeMinor: req.body.otherFeeMinor }),
+        });
+
+        if (!result) {
+            return res.status(404).json({ message: "Cargo allocation not found", status: false });
+        }
+
+        if (result === "FORBIDDEN") {
+            return res.status(403).json({ message: "You cannot update this cost breakdown", status: false });
+        }
+
+        if (result === "INVALID_STATUS") {
+            return res.status(400).json({ message: "Only unconfirmed cargo allocations can have their cost breakdown updated", status: false });
+        }
+
+        if (result === "BREAKDOWN_NOT_FOUND") {
+            return res.status(404).json({ message: "Cost breakdown not found", status: false });
+        }
+
+        return res.status(200).json({
+            message: "Cost breakdown updated successfully",
+            status: true,
+            data: jsonSafe(result),
+        });
+    } catch (error) {
+        console.error("Update cost breakdown error:", error);
+        return res.status(500).json({ message: "Unable to process request", status: false });
+    }
+}
 
 export const getPaymentIntentById = async (req: Request, res: Response) => {
     try {
