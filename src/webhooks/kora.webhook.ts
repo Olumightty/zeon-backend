@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { isFromKora } from '../api/guard/auth.guard';
 import { chargeSuccess } from '../events/kora.event';
+import type { KoraWebhookPayload } from '../types/api/webhook';
 const router = Router();
 
 router.post('/webhook', isFromKora, async (req: Request, res: Response) => {

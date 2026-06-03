@@ -23,7 +23,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<any> => {
         const wh = new Webhook(SVIX_SECRET);
         
         // This confirms the request actually came securely from Clerk
-        verifiedPayload = wh.verify(rawBody, headers) as ClerkWebhookEvent;
+        verifiedPayload = wh.verify(rawBody, headers as any) as  ClerkWebhookEvent;
     } catch (err) {
         console.error('Webhook verification failed:', err);
         // Explicit return stops execution instantly if forgery or error occurs

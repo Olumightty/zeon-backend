@@ -46,3 +46,27 @@ export interface ClerkVerification {
   status: 'verified' | 'unverified' | 'pending';
   strategy: 'ticket' | 'email_code' | 'oauth_google' | string; // Accounts for various auth paths
 }
+
+
+export type KoraEvent = 'transfer.success' | 'transfer.failed' | 'charge.success';
+
+export interface KoraWebhookPayload {
+    event: KoraEvent;
+    data: any;
+}
+
+export interface KoraChargeSuccessPayload extends KoraWebhookPayload {
+    event: 'charge.success';
+    data: KoraPayinWebhookData;
+}
+
+
+export interface KoraPayinWebhookData {
+  fee: number,
+  amount: number,
+  status: "success" | "failed",
+  currency: "NGN" | string,
+  reference: string,
+  payment_method: "mobile_money" | "card" | "bank_transfer" | string,
+  payment_reference: string
+}

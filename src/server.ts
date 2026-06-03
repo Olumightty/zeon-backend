@@ -13,9 +13,12 @@ import * as paymentRoute from './api/payment/payment.route';
 import * as clerkWebhook from './webhooks/clerk.webhook';
 import { clerkMiddleware} from '@clerk/express'
 import { authGuard } from './api/guard/auth.guard';
+import cors from 'cors'
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+app.use(cors())
 
 app.use(morgan('dev')); // Middleware to parse JSON payloads
 
