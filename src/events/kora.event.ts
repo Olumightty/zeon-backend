@@ -30,6 +30,7 @@ export const chargeSuccess = async (data: KoraPayinWebhookData) => {
         });
         await markCargoAllocationPendingPoolingService(paymentIntent.cargoAllocationId);
 
+        //notify user via email and notification service, the system is also alerted to start pooling and logistics arrangements
         return
     } catch (error) {
         console.error("Error in chargeSuccess handler:", error);

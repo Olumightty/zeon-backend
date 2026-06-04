@@ -79,6 +79,14 @@ Money fields ending in `Minor` are minor units, for example kobo/cents. `BigInt`
 
 `SHIP`, `PLANE`, `TRUCK`, `TRAIN`
 
+### ConversationStatus
+
+`OPEN`, `CLOSED`, `ARCHIVED`
+
+### ConversationParticipantRole
+
+`REQUESTER`, `RESPONDER`, `ASSIGNEE`
+
 ## Health
 
 ### GET `/`
@@ -558,6 +566,89 @@ Content-Type: application/json
 Content-Disposition: attachment; filename="<referenceCode>-manifest.json"
 ```
 
+## Messaging API
+
+Base path: `/api/messaging`
+
+Messaging is currently HTTP-only. The frontend should manually reload/poll for new messages until websockets are added.
+
+Conversations happen between authenticated platform users and/or organization teams. Trade partners are not message participants.
+
+Organization users must be `OWNER`, `ADMIN`, or `OPS_MANAGER` to use messaging while acting in an organization context.
+
+### GET `/api/messaging/conversations`
+
+List conversations available to the current user or active organization.
+
+**Query**
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `status` | ConversationStatus | Optional |
+| `storeId` | string | Optional |
+| `productId` | string | Optional |
+| `page` | number | Default `1` |
+| `limit` | number | Default `20`, max `100` |
+
+### POST `/api/messaging/conversations`
+
+Create a conversation for a store and create the first system/user messages.
+
+The backend determines the responding side from the store:
+
+- `store.userId` means the responder is a personal store owner.
+- `store.organizationId` means the responder is that organization's ops team.
+
+The requester is the active organization if `req.user.orgId` exists, otherwise the authenticated user.
+
+**Body**
+
+```json
+{
+  "storeId": "store_123",
+  "productId": "product_123",
+  "subject": "Need landing terms for telemetry nodes",
+  "body": "Hello, can you confirm availability and shipping lead time?"
+}
+```
+
+Required: `storeId`, `subject`, `body`.
+
+`productId` is optional, but if supplied it must belong to the store.
+
+The backend rejects attempts to start a conversation with your own store.
+
+### GET `/api/messaging/conversations/:id`
+
+Fetch a conversation if the current user or active organization is a participant.
+
+### GET `/api/messaging/conversations/:id/messages`
+
+Fetch messages in a conversation. This also updates the current participant's `lastReadAt`.
+
+**Query**
+
+| Name | Type | Notes |
+| --- | --- | --- |
+| `page` | number | Default `1` |
+| `limit` | number | Default `50`, max `100` |
+
+### POST `/api/messaging/conversations/:id/messages`
+
+Send a message in an open conversation.
+
+**Body**
+
+```json
+{
+  "body": "Thanks. Please send the updated pricing."
+}
+```
+
+### POST `/api/messaging/conversations/:id/close`
+
+Close a conversation. Closed conversations cannot receive new messages.
+
 ## Frontend Integration Notes
 
 ### Recommended Request Helper
@@ -639,9 +730,40 @@ GET /api/shipment/:id/manifest
 GET /api/shipment/:id/download
 ```
 
+### Suggested Messaging Flow
+
+1. Start a store conversation:
+
+```http
+POST /api/messaging/conversations
+```
+
+2. List inbox conversations:
+
+```http
+GET /api/messaging/conversations?status=OPEN
+```
+
+3. Load messages:
+
+```http
+GET /api/messaging/conversations/:id/messages
+```
+
+4. Send a message:
+
+```http
+POST /api/messaging/conversations/:id/messages
+```
+
+5. Close the conversation when resolved:
+
+```http
+POST /api/messaging/conversations/:id/close
+```
+
 ## Known Not-Yet-Implemented Areas
 
-- Messaging routes exist in the codebase but are not mounted in `server.ts`.
 - Webhook endpoint handlers exist for Clerk/Kora, but they are backend-provider integrations rather than frontend APIs.
 - Payment webhook processing and escrow creation logic are still incomplete.
 - Actual file/PDF manifest generation is not implemented yet; current manifest download returns structured JSON.
@@ -1531,3 +1653,261 @@ Returns the same payload shape as `POST /api/shipment/:id/manifest`.
 #### GET `/api/shipment/:id/download`
 
 Returns the same manifest JSON payload as a downloadable file, not wrapped in `{ message, status, data }`.
+
+### Messaging Examples
+
+#### GET `/api/messaging/conversations`
+
+```json
+{
+  "conversations": [
+    {
+      "id": "conversation_123",
+      "storeId": "store_123",
+      "productId": "product_123",
+      "subject": "Need landing terms for telemetry nodes",
+      "status": "OPEN",
+      "lastMessageAt": "2026-06-04T09:00:00.000Z",
+      "store": {
+        "id": "store_123",
+        "name": "Lagos Components",
+        "slug": "lagos-components"
+      },
+      "product": {
+        "id": "product_123",
+        "name": "Wireless Telemetry Node"
+      },
+      "participants": [
+        {
+          "id": "participant_123",
+          "conversationId": "conversation_123",
+          "userId": "user_123",
+          "organizationId": null,
+          "role": "REQUESTER",
+          "lastReadAt": "2026-06-04T09:00:00.000Z",
+          "user": {
+            "id": "user_123",
+            "firstName": "Ada",
+            "lastName": "Okafor",
+            "email": "ada@example.com",
+            "profileImageUrl": "https://example.com/avatar.png"
+          },
+          "organization": null
+        },
+        {
+          "id": "participant_456",
+          "conversationId": "conversation_123",
+          "userId": null,
+          "organizationId": "org_123",
+          "role": "RESPONDER",
+          "lastReadAt": null,
+          "user": null,
+          "organization": {
+            "id": "org_123",
+            "name": "Zeon Import Co",
+            "countryCode": "NG",
+            "baseCurrency": "NGN",
+            "status": "ACTIVE"
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "message_latest",
+          "conversationId": "conversation_123",
+          "senderType": "USER",
+          "senderUserId": "user_123",
+          "direction": "OUTBOUND",
+          "body": "Hello, can you confirm availability?",
+          "sentAt": "2026-06-04T09:00:00.000Z",
+          "readAt": null
+        }
+      ]
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 20
+}
+```
+
+#### POST `/api/messaging/conversations`
+
+```json
+{
+  "id": "conversation_123",
+  "storeId": "store_123",
+  "productId": "product_123",
+  "subject": "Need landing terms for telemetry nodes",
+  "status": "OPEN",
+  "lastMessageAt": "2026-06-04T09:00:00.000Z",
+  "store": {
+    "id": "store_123",
+    "name": "Lagos Components"
+  },
+  "product": {
+    "id": "product_123",
+    "name": "Wireless Telemetry Node"
+  },
+  "participants": [
+    {
+      "id": "participant_123",
+      "role": "REQUESTER",
+      "userId": "user_123",
+      "organizationId": null
+    },
+    {
+      "id": "participant_456",
+      "role": "RESPONDER",
+      "userId": null,
+      "organizationId": "org_123"
+    }
+  ],
+  "messages": [
+    {
+      "id": "message_user",
+      "senderType": "USER",
+      "senderUserId": "user_123",
+      "direction": "OUTBOUND",
+      "body": "Hello, can you confirm availability and shipping lead time?",
+      "sentAt": "2026-06-04T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+The create response includes only the latest message because the standard conversation include returns `messages` with `take: 1`.
+
+#### GET `/api/messaging/conversations/:id`
+
+```json
+{
+  "id": "conversation_123",
+  "storeId": "store_123",
+  "productId": "product_123",
+  "subject": "Need landing terms for telemetry nodes",
+  "status": "OPEN",
+  "lastMessageAt": "2026-06-04T09:00:00.000Z",
+  "store": {
+    "id": "store_123",
+    "name": "Lagos Components"
+  },
+  "product": {
+    "id": "product_123",
+    "name": "Wireless Telemetry Node"
+  },
+  "participants": [
+    {
+      "id": "participant_123",
+      "role": "REQUESTER",
+      "user": {
+        "id": "user_123",
+        "email": "ada@example.com"
+      },
+      "organization": null
+    },
+    {
+      "id": "participant_456",
+      "role": "RESPONDER",
+      "user": null,
+      "organization": {
+        "id": "org_123",
+        "name": "Zeon Import Co"
+      }
+    }
+  ],
+  "messages": [
+    {
+      "id": "message_latest",
+      "senderType": "USER",
+      "body": "Hello, can you confirm availability?",
+      "sentAt": "2026-06-04T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### GET `/api/messaging/conversations/:id/messages`
+
+```json
+{
+  "messages": [
+    {
+      "id": "message_system",
+      "conversationId": "conversation_123",
+      "senderType": "SYSTEM",
+      "senderUserId": null,
+      "direction": "SYSTEM",
+      "body": "Conversation started.",
+      "sentAt": "2026-06-04T09:00:00.000Z",
+      "readAt": null,
+      "senderUser": null
+    },
+    {
+      "id": "message_user",
+      "conversationId": "conversation_123",
+      "senderType": "USER",
+      "senderUserId": "user_123",
+      "direction": "OUTBOUND",
+      "body": "Hello, can you confirm availability and shipping lead time?",
+      "sentAt": "2026-06-04T09:00:00.000Z",
+      "readAt": null,
+      "senderUser": {
+        "id": "user_123",
+        "firstName": "Ada",
+        "lastName": "Okafor",
+        "email": "ada@example.com",
+        "profileImageUrl": "https://example.com/avatar.png"
+      }
+    }
+  ],
+  "total": 2,
+  "page": 1,
+  "limit": 50
+}
+```
+
+#### POST `/api/messaging/conversations/:id/messages`
+
+```json
+{
+  "id": "message_789",
+  "conversationId": "conversation_123",
+  "senderType": "USER",
+  "senderUserId": "user_456",
+  "direction": "OUTBOUND",
+  "body": "Thanks. Please send the updated pricing.",
+  "sentAt": "2026-06-04T09:10:00.000Z",
+  "readAt": null,
+  "senderUser": {
+    "id": "user_456",
+    "firstName": "Tunde",
+    "lastName": "Adebayo",
+    "email": "tunde@example.com",
+    "profileImageUrl": null
+  }
+}
+```
+
+#### POST `/api/messaging/conversations/:id/close`
+
+```json
+{
+  "id": "conversation_123",
+  "storeId": "store_123",
+  "productId": "product_123",
+  "subject": "Need landing terms for telemetry nodes",
+  "status": "CLOSED",
+  "lastMessageAt": "2026-06-04T09:10:00.000Z",
+  "store": {
+    "id": "store_123",
+    "name": "Lagos Components"
+  },
+  "product": {
+    "id": "product_123",
+    "name": "Wireless Telemetry Node"
+  },
+  "participants": [],
+  "messages": []
+}
+```
