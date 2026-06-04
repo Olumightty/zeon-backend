@@ -4,12 +4,11 @@
   "description": "The Official Backend for Zeon Systems",
   "license": "ISC",
   "author": "",
-  "type": "module",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npx tsx --env-file=.env  src/server.ts",
-    "build": "tsc",
+    "build": "tsc && cp src/generated dist/generated -r",
     "start": "node dist/server.js"
   },
   "dependencies": {
@@ -35,6 +34,6 @@
     "@types/pg": "^8.20.0",
     "prisma": "^7.8.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^6.0.3"
+    "typescript": "^5.8.3"
   }
 }
