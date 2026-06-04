@@ -18,9 +18,22 @@ import cors from 'cors'
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-app.use(cors())
+app.use(cors({
+  credentials: true,
+  origin: process.env.WEB_CLIENT_URL || 'http://localhost:3000',
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type", 
+    "Authorization", 
+    'x-korapay-signature', 
+    'svix-signature', 
+    'svix-timestamp', 
+    'svix-id',
+  ],
+}))
 
-app.use(morgan('dev')); // Middleware to parse JSON payloads
+app.use(morgan('dev')); // Log HTTP requests in development mode
+app.set('trust proxy', 1);
 
 //needs raw body for verification, so mount it before express.json()
 app.use('/clerk', clerkWebhook.default);
@@ -36,6 +49,8 @@ app.use(clerkMiddleware())
 app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'Hello from Zeon Systems' });
 });
+
+app.options("*any", (req, res) => res.sendStatus(204));
 
 app.use('/api/user', authGuard, userRoute.default);
 app.use('/api/marketplace', authGuard, marketplaceRoute.default);
