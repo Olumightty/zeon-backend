@@ -42,6 +42,44 @@ const verificationBadges = [
   "TIER_1_SUPPLY",
 ];
 
+const bankAccountTypes = [
+  "SAVINGS",
+  "CURRENT",
+  "CHECKING",
+];
+
+const accountHolderTypes = [
+  "INDIVIDUAL",
+  "BUSINESS",
+];
+
+const validateRoutingMetadata = (value: unknown, countryCode?: string) => {
+  const metadata = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+
+  if (countryCode === "US") {
+    const routingNumber = metadata.routing_number;
+    if (typeof routingNumber !== "string" || !/^\d{9}$/.test(routingNumber)) {
+      throw new Error("US bank accounts require a valid 9-digit ACH routing_number.");
+    }
+  }
+
+  if (countryCode === "NG") {
+    const bankCode = metadata.bank_code;
+    if (typeof bankCode !== "string" || !/^\d{3}$/.test(bankCode)) {
+      throw new Error("Nigerian accounts require a valid 3-digit bank_code.");
+    }
+  }
+
+  if (countryCode === "DE" || countryCode === "FR") {
+    const iban = metadata.iban;
+    if (typeof iban !== "string" || iban.trim().length === 0) {
+      throw new Error("European Union bank records require an iban value string.");
+    }
+  }
+
+  return true;
+};
+
 export const validateRequest = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -68,6 +106,12 @@ export const productIdValidator = [
 export const tradePartnerIdValidator = [
   param("id").trim().notEmpty().escape(),
   param("tpid").trim().notEmpty().escape(),
+  validateRequest,
+];
+
+export const bankAccountIdValidator = [
+  param("id").trim().notEmpty().escape(),
+  param("baid").trim().notEmpty().escape(),
   validateRequest,
 ];
 
@@ -174,6 +218,55 @@ export const updateTradePartnerValidator = [
   body("isPrimary").optional().isBoolean().toBoolean(),
   body("handlesImports").optional().isBoolean().toBoolean(),
   body("handlesExports").optional().isBoolean().toBoolean(),
+  body("isActive").optional().isBoolean().toBoolean(),
+  validateRequest,
+];
+
+export const createBankAccountValidator = [
+  param("id").trim().notEmpty().escape(),
+  body("accountNumber").trim().isLength({ min: 3, max: 80 }),
+  body("accountName").trim().isLength({ min: 1, max: 180 }).escape(),
+  body("accountType").trim().toUpperCase().isIn(bankAccountTypes),
+  body("holderType").trim().toUpperCase().isIn(accountHolderTypes),
+  body("bankName").trim().isLength({ min: 1, max: 180 }).escape(),
+  body("bankCode").trim().isLength({ min: 1, max: 40 }).escape(),
+  body("swiftBic").trim().isLength({ min: 8, max: 11 }).escape(),
+  body("countryCode").trim().toUpperCase().isLength({ min: 2, max: 2 }),
+  body("currencyCode").trim().toUpperCase().isLength({ min: 3, max: 3 }),
+  body("routingMetadata")
+    .optional({ nullable: true })
+    .custom((value, { req }) => {
+      if (value !== undefined && (typeof value !== "object" || Array.isArray(value))) {
+        throw new Error("routingMetadata must be an object.");
+      }
+
+      return validateRoutingMetadata(value || {}, req.body.countryCode);
+    }),
+  validateRequest,
+];
+
+export const updateBankAccountValidator = [
+  param("id").trim().notEmpty().escape(),
+  param("baid").trim().notEmpty().escape(),
+  body("accountNumber").optional().trim().isLength({ min: 3, max: 80 }),
+  body("accountName").optional().trim().isLength({ min: 1, max: 180 }).escape(),
+  body("accountType").optional().trim().toUpperCase().isIn(bankAccountTypes),
+  body("holderType").optional().trim().toUpperCase().isIn(accountHolderTypes),
+  body("bankName").optional().trim().isLength({ min: 1, max: 180 }).escape(),
+  body("bankCode").optional({ nullable: true }).trim().isLength({ min: 1, max: 40 }).escape(),
+  body("swiftBic").optional({ nullable: true }).trim().isLength({ min: 8, max: 11 }).escape(),
+  body("countryCode").optional().trim().toUpperCase().isLength({ min: 2, max: 2 }),
+  body("currencyCode").optional().trim().toUpperCase().isLength({ min: 3, max: 3 }),
+  body("routingMetadata")
+    .optional()
+    .custom((value, { req }) => {
+      if (value !== undefined && (typeof value !== "object" || Array.isArray(value))) {
+        throw new Error("routingMetadata must be an object.");
+      }
+
+      if (!req.body.countryCode) return true;
+      return validateRoutingMetadata(value || {}, req.body.countryCode);
+    }),
   body("isActive").optional().isBoolean().toBoolean(),
   validateRequest,
 ];

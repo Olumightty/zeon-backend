@@ -87,6 +87,14 @@ Money fields ending in `Minor` are minor units, for example kobo/cents. `BigInt`
 
 `REQUESTER`, `RESPONDER`, `ASSIGNEE`
 
+### BankAccountType
+
+`SAVINGS`, `CURRENT`, `CHECKING`
+
+### AccountHolderType
+
+`INDIVIDUAL`, `BUSINESS`
+
 ## Health
 
 ### GET `/`
@@ -319,6 +327,71 @@ Accepts create fields as optional, plus:
 ### DELETE `/api/marketplace/stores/:id/trade-partners/:tpid`
 
 Soft-delete a trade partner.
+
+### GET `/api/marketplace/stores/:id/bank-accounts`
+
+List active bank accounts for a store.
+
+This endpoint is visible to authenticated marketplace users.
+
+### GET `/api/marketplace/stores/:id/bank-accounts/:baid`
+
+Fetch one active bank account for a store.
+
+### POST `/api/marketplace/stores/:id/bank-accounts`
+
+Create a bank account for a store. Only the store owner or org `OWNER`/`ADMIN` can create it.
+
+The current schema allows one bank account per store.
+
+**Body**
+
+```json
+{
+  "accountNumber": "0123456789",
+  "accountName": "Lagos Components Limited",
+  "accountType": "CURRENT",
+  "holderType": "BUSINESS",
+  "bankName": "Example Bank",
+  "bankCode": "044",
+  "swiftBic": "EXAMPLLA",
+  "countryCode": "NG",
+  "currencyCode": "NGN",
+  "routingMetadata": {
+    "bank_code": "044"
+  }
+}
+```
+
+Required: `accountNumber`, `accountName`, `bankName`, `countryCode`, `currencyCode`.
+
+`accountType` defaults to `CURRENT`. `holderType` defaults to `BUSINESS`. `routingMetadata` defaults to `{}`.
+
+Country-specific `routingMetadata` rules:
+
+| Country | Required metadata |
+| --- | --- |
+| `US` | `routing_number`, 9 digits |
+| `NG` | `bank_code`, 3 digits |
+| `Europe` | `iban`, non-empty string |
+
+### PATCH `/api/marketplace/stores/:id/bank-accounts/:baid`
+
+Update a bank account. Only the store owner or org `OWNER`/`ADMIN` can update it.
+
+Accepts create fields as optional, plus:
+
+```json
+{
+  "isActive": true
+}
+```
+
+If `routingMetadata` is updated, it is validated against the supplied `countryCode` or the existing bank account country.
+
+### DELETE `/api/marketplace/stores/:id/bank-accounts/:baid`
+
+Soft-delete a bank account by setting `isActive` to false.
 
 ## Cargo API
 
@@ -1154,6 +1227,128 @@ This endpoint returns no `data` field.
 ```json
 {
   "message": "Trade partner deleted successfully",
+  "status": true
+}
+```
+
+#### GET `/api/marketplace/stores/:id/bank-accounts`
+
+```json
+[
+  {
+    "id": "bank_account_123",
+    "storeId": "store_123",
+    "accountNumber": "0123456789",
+    "accountName": "Lagos Components Limited",
+    "accountType": "CURRENT",
+    "holderType": "BUSINESS",
+    "bankName": "Example Bank",
+    "bankCode": "044",
+    "swiftBic": "EXAMPLLA",
+    "countryCode": "NG",
+    "currencyCode": "NGN",
+    "routingMetadata": {
+      "bank_code": "044"
+    },
+    "isActive": true,
+    "createdAt": "2026-06-04T09:00:00.000Z",
+    "updatedAt": "2026-06-04T09:00:00.000Z",
+    "store": {
+      "id": "store_123",
+      "name": "Lagos Components"
+    }
+  }
+]
+```
+
+#### GET `/api/marketplace/stores/:id/bank-accounts/:baid`
+
+```json
+{
+  "id": "bank_account_123",
+  "storeId": "store_123",
+  "accountNumber": "0123456789",
+  "accountName": "Lagos Components Limited",
+  "accountType": "CURRENT",
+  "holderType": "BUSINESS",
+  "bankName": "Example Bank",
+  "bankCode": "044",
+  "swiftBic": "EXAMPLLA",
+  "countryCode": "NG",
+  "currencyCode": "NGN",
+  "routingMetadata": {
+    "bank_code": "044"
+  },
+  "isActive": true,
+  "store": {
+    "id": "store_123",
+    "name": "Lagos Components"
+  }
+}
+```
+
+#### POST `/api/marketplace/stores/:id/bank-accounts`
+
+```json
+{
+  "id": "bank_account_123",
+  "storeId": "store_123",
+  "accountNumber": "0123456789",
+  "accountName": "Lagos Components Limited",
+  "accountType": "CURRENT",
+  "holderType": "BUSINESS",
+  "bankName": "Example Bank",
+  "bankCode": "044",
+  "swiftBic": "EXAMPLLA",
+  "countryCode": "NG",
+  "currencyCode": "NGN",
+  "routingMetadata": {
+    "bank_code": "044"
+  },
+  "isActive": true,
+  "createdAt": "2026-06-04T09:00:00.000Z",
+  "updatedAt": "2026-06-04T09:00:00.000Z",
+  "store": {
+    "id": "store_123",
+    "name": "Lagos Components"
+  }
+}
+```
+
+#### PATCH `/api/marketplace/stores/:id/bank-accounts/:baid`
+
+```json
+{
+  "id": "bank_account_123",
+  "storeId": "store_123",
+  "accountNumber": "DE89370400440532013000",
+  "accountName": "Lagos Components EU Settlement",
+  "accountType": "CURRENT",
+  "holderType": "BUSINESS",
+  "bankName": "Example EU Bank",
+  "bankCode": null,
+  "swiftBic": "DEUTDEFF",
+  "countryCode": "DE",
+  "currencyCode": "EUR",
+  "routingMetadata": {
+    "iban": "DE89370400440532013000"
+  },
+  "isActive": true,
+  "updatedAt": "2026-06-04T09:30:00.000Z",
+  "store": {
+    "id": "store_123",
+    "name": "Lagos Components"
+  }
+}
+```
+
+#### DELETE `/api/marketplace/stores/:id/bank-accounts/:baid`
+
+This endpoint returns no `data` field.
+
+```json
+{
+  "message": "Bank account deleted successfully",
   "status": true
 }
 ```

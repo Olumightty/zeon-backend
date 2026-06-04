@@ -41,6 +41,17 @@ enum VerificationBadge {
   TIER_1_SUPPLY
 }
 
+enum BankAccountType {
+  SAVINGS
+  CURRENT
+  CHECKING
+}
+
+enum AccountHolderType {
+  INDIVIDUAL
+  BUSINESS
+}
+
 enum TradePartnerRole {
   IMPORT_MANAGER
   EXPORT_MANAGER
@@ -302,6 +313,7 @@ model Store {
   user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   products         Product[]
+  bankAccounts     BankAccount[]
   tradePartners    TradePartner[]
   cargoAllocations CargoAllocation[]
   conversations    Conversation[]
@@ -337,6 +349,33 @@ model Product {
   @@index([storeId])
   @@index([isActive])
   @@map("products")
+}
+
+model BankAccount {
+  id              String            @id @default(cuid())
+  storeId         String            @unique // Direct foreign key connection to a Store
+  accountNumber   String            // Raw account string (can hold IBAN, NUBAN, or standard account numbers)
+  accountName     String            // Must exactly match official corporate or legal name registry
+  accountType     BankAccountType   @default(CURRENT)
+  holderType      AccountHolderType @default(BUSINESS)
+
+  bankName        String            // Name of the institution
+  bankCode        String            // Local institution routing identifier
+  swiftBic        String            // for international SWIFT wires
+  countryCode     String            @db.Char(2)
+  currencyCode    String            @db.Char(3)
+
+  routingMetadata Json              @default("{}") // region specific routing info
+  
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  store           Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([countryCode, currencyCode])
+  @@map("bank_accounts")
 }
 
 model TradePartner {

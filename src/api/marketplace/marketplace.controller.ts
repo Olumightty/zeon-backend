@@ -1,21 +1,27 @@
 import type { Request, Response } from "express";
 import {
   canManageOrganization,
+  createBankAccountService,
   createProductService,
   createStoreService,
   createTradePartnerService,
+  deleteBankAccountService,
   deleteProductService,
   deleteStoreService,
   deleteTradePartnerService,
+  findAnyBankAccountByStoreId,
+  findBankAccountById,
   findProductById,
   findStoreById,
   findTradePartnerById,
   findUniqueStoreSlug,
   findUserById,
+  getBankAccountsByStoreIdService,
   getProductsByStoreIdService,
   getStoreOwnerCanManage,
   getStoresService,
   getTradePartnersByStoreIdService,
+  updateBankAccountService,
   updateProductService,
   updateStoreService,
   updateTradePartnerService,
@@ -48,6 +54,35 @@ const hasBodyData = (body: Record<string, unknown>) => {
 const getParam = (req: Request, key: string) => {
   const value = req.params[key];
   return Array.isArray(value) ? value[0] || "" : value || "";
+};
+
+const validateRoutingMetadata = (value: unknown, countryCode: string) => {
+  const metadata = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+
+  if (countryCode === "US") {
+    const routingNumber = metadata.routing_number;
+    return typeof routingNumber === "string" && /^\d{9}$/.test(routingNumber);
+  }
+
+  if (countryCode === "NG") {
+    const bankCode = metadata.bank_code;
+    return typeof bankCode === "string" && /^\d{3}$/.test(bankCode);
+  }
+
+  if (countryCode === "DE" || countryCode === "FR") {
+    const iban = metadata.iban;
+    return typeof iban === "string" && iban.trim().length > 0;
+  }
+
+  return true;
+};
+
+const getRoutingMetadataError = (countryCode: string) => {
+  // TODO: make this more robust in later iterations
+  if (countryCode === "US") return "US bank accounts require a valid 9-digit ACH routing_number.";
+  if (countryCode === "NG") return "Nigerian accounts require a valid 3-digit bank_code.";
+  if (countryCode === "DE" || countryCode === "FR") return "European Union bank records require an iban value string.";
+  return "Invalid routing metadata";
 };
 
 export const getStores = async (req: Request, res: Response) => {
@@ -519,6 +554,178 @@ export const deleteTradePartnerById = async (req: Request, res: Response) => {
     return res.status(200).json({ message: "Trade partner deleted successfully", status: true });
   } catch (error) {
     console.error("Delete trade partner error:", error);
+    return res.status(500).json({ message: "Unable to process request", status: false });
+  }
+};
+
+export const getBankAccountsByStoreId = async (req: Request, res: Response) => {
+  try {
+    const storeId = getParam(req, "id");
+    const store = await findStoreById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Store not found", status: false });
+    }
+
+    const bankAccounts = await getBankAccountsByStoreIdService(storeId);
+    return res.status(200).json({
+      message: "Bank accounts fetched successfully",
+      status: true,
+      data: jsonSafe(bankAccounts),
+    });
+  } catch (error) {
+    console.error("Get bank accounts error:", error);
+    return res.status(500).json({ message: "Unable to process request", status: false });
+  }
+};
+
+export const getBankAccountById = async (req: Request, res: Response) => {
+  try {
+    const storeId = getParam(req, "id");
+    const bankAccountId = getParam(req, "baid");
+    const bankAccount = await findBankAccountById(storeId, bankAccountId);
+    if (!bankAccount) {
+      return res.status(404).json({ message: "Bank account not found", status: false });
+    }
+
+    return res.status(200).json({
+      message: "Bank account fetched successfully",
+      status: true,
+      data: jsonSafe(bankAccount),
+    });
+  } catch (error) {
+    console.error("Get bank account error:", error);
+    return res.status(500).json({ message: "Unable to process request", status: false });
+  }
+};
+
+export const createBankAccountByStoreId = async (req: Request, res: Response) => {
+  try {
+    const auth = getAuthUser(req);
+    if (!auth) {
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    const storeId = getParam(req, "id");
+    const canManage = await getStoreOwnerCanManage(storeId, auth);
+    if (!canManage) {
+      return res.status(403).json({ message: "You cannot create bank accounts in this store", status: false });
+    }
+
+    const store = await findStoreById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Store not found", status: false });
+    }
+
+    const existingBankAccount = await findAnyBankAccountByStoreId(storeId);
+    if (existingBankAccount) {
+      return res.status(409).json({ message: "Store already has a bank account", status: false });
+    }
+
+    const bankAccount = await createBankAccountService({
+      storeId,
+      accountNumber: req.body.accountNumber,
+      accountName: req.body.accountName,
+      accountType: req.body.accountType || "CURRENT",
+      holderType: req.body.holderType || "BUSINESS",
+      bankName: req.body.bankName,
+      bankCode: req.body.bankCode || null,
+      swiftBic: req.body.swiftBic || null,
+      countryCode: req.body.countryCode,
+      currencyCode: req.body.currencyCode,
+      routingMetadata: req.body.routingMetadata || {},
+    });
+
+    return res.status(201).json({
+      message: "Bank account created successfully",
+      status: true,
+      data: jsonSafe(bankAccount),
+    });
+  } catch (error) {
+    console.error("Create bank account error:", error);
+    return res.status(500).json({ message: "Unable to process request", status: false });
+  }
+};
+
+export const updateBankAccountById = async (req: Request, res: Response) => {
+  try {
+    const auth = getAuthUser(req);
+    if (!auth) {
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    if (!hasBodyData(req.body)) {
+      return res.status(400).json({ message: "Invalid request parameters", status: false });
+    }
+
+    const storeId = getParam(req, "id");
+    const bankAccountId = getParam(req, "baid");
+    const canManage = await getStoreOwnerCanManage(storeId, auth);
+    if (!canManage) {
+      return res.status(403).json({ message: "You cannot update this bank account", status: false });
+    }
+
+    const existingBankAccount = await findBankAccountById(storeId, bankAccountId);
+    if (!existingBankAccount) {
+      return res.status(404).json({ message: "Bank account not found", status: false });
+    }
+
+    const countryCode = req.body.countryCode || existingBankAccount.countryCode;
+    const routingMetadata = req.body.routingMetadata ?? existingBankAccount.routingMetadata;
+    if (
+      (req.body.routingMetadata !== undefined || req.body.countryCode !== undefined) &&
+      !validateRoutingMetadata(routingMetadata, countryCode)
+    ) {
+      return res.status(400).json({ message: getRoutingMetadataError(countryCode), status: false });
+    }
+
+    const bankAccount = await updateBankAccountService(bankAccountId, {
+      ...(req.body.accountNumber !== undefined && { accountNumber: req.body.accountNumber }),
+      ...(req.body.accountName !== undefined && { accountName: req.body.accountName }),
+      ...(req.body.accountType !== undefined && { accountType: req.body.accountType }),
+      ...(req.body.holderType !== undefined && { holderType: req.body.holderType }),
+      ...(req.body.bankName !== undefined && { bankName: req.body.bankName }),
+      ...(req.body.bankCode !== undefined && { bankCode: req.body.bankCode }),
+      ...(req.body.swiftBic !== undefined && { swiftBic: req.body.swiftBic }),
+      ...(req.body.countryCode !== undefined && { countryCode: req.body.countryCode }),
+      ...(req.body.currencyCode !== undefined && { currencyCode: req.body.currencyCode }),
+      ...(req.body.routingMetadata !== undefined && { routingMetadata: req.body.routingMetadata }),
+      ...(req.body.isActive !== undefined && { isActive: req.body.isActive }),
+    });
+
+    return res.status(200).json({
+      message: "Bank account updated successfully",
+      status: true,
+      data: jsonSafe(bankAccount),
+    });
+  } catch (error) {
+    console.error("Update bank account error:", error);
+    return res.status(500).json({ message: "Unable to process request", status: false });
+  }
+};
+
+export const deleteBankAccountById = async (req: Request, res: Response) => {
+  try {
+    const auth = getAuthUser(req);
+    if (!auth) {
+      return res.status(401).json({ message: "Unauthorized", status: false });
+    }
+
+    const storeId = getParam(req, "id");
+    const bankAccountId = getParam(req, "baid");
+    const canManage = await getStoreOwnerCanManage(storeId, auth);
+    if (!canManage) {
+      return res.status(403).json({ message: "You cannot delete this bank account", status: false });
+    }
+
+    const bankAccount = await findBankAccountById(storeId, bankAccountId);
+    if (!bankAccount) {
+      return res.status(404).json({ message: "Bank account not found", status: false });
+    }
+
+    await deleteBankAccountService(bankAccountId);
+    return res.status(200).json({ message: "Bank account deleted successfully", status: true });
+  } catch (error) {
+    console.error("Delete bank account error:", error);
     return res.status(500).json({ message: "Unable to process request", status: false });
   }
 };

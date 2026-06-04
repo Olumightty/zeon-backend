@@ -1,22 +1,29 @@
 import { Router } from 'express';
 import {
+    createBankAccountByStoreId,
     createProductByStoreId,
     createStore,
     createTradePartnerByStoreId,
+    deleteBankAccountById,
     deleteProductById,
     deleteStoreById,
     deleteTradePartnerById,
+    getBankAccountById,
+    getBankAccountsByStoreId,
     getProductById,
     getProductsByStoreId,
     getStoreById,
     getStores,
     getTradePartnerById,
     getTradePartnersByStoreId,
+    updateBankAccountById,
     updateProductById,
     updateStoreById,
     updateTradePartnerById
 } from './marketplace.controller';
 import {
+    bankAccountIdValidator,
+    createBankAccountValidator,
     createProductValidator,
     createStoreValidator,
     createTradePartnerValidator,
@@ -25,6 +32,7 @@ import {
     productIdValidator,
     storeIdValidator,
     tradePartnerIdValidator,
+    updateBankAccountValidator,
     updateProductValidator,
     updateStoreValidator,
     updateTradePartnerValidator,
@@ -83,5 +91,20 @@ router.patch('/stores/:id/trade-partners/:tpid', updateTradePartnerValidator, up
 
 // delete a specific trade partner by id in a specific store (only the owner and admins (user) of the store can delete it)
 router.delete('/stores/:id/trade-partners/:tpid', tradePartnerIdValidator, deleteTradePartnerById);
+
+// get list of bank accounts for a specific store (visible to everyone in the marketplace)
+router.get('/stores/:id/bank-accounts', storeIdValidator, getBankAccountsByStoreId)
+
+// get a specific bank account by id for a specific store (visible to everyone in the marketplace)
+router.get('/stores/:id/bank-accounts/:baid', bankAccountIdValidator, getBankAccountById)
+
+// create a new bank account for a specific store (only the owner and admins (user) of the store can create a bank account in the store)
+router.post('/stores/:id/bank-accounts', createBankAccountValidator, createBankAccountByStoreId)
+
+// update a specific bank account by id for a specific store (only the owner and admins (user) of the store can update it)
+router.patch('/stores/:id/bank-accounts/:baid', updateBankAccountValidator, updateBankAccountById)
+
+// delete a specific bank account by id in a specific store (only the owner and admins (user) of the store can delete it)
+router.delete('/stores/:id/bank-accounts/:baid', bankAccountIdValidator, deleteBankAccountById)
 
 export default router;

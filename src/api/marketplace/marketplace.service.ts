@@ -59,6 +59,10 @@ const tradePartnerInclude = {
   store: true,
 };
 
+const bankAccountInclude = {
+  store: true,
+};
+
 const slugify = (value: string) => {
   return value
     .toLowerCase()
@@ -398,6 +402,68 @@ export const deleteTradePartnerService = async (id: string) => {
     data: {
       isActive: false,
       isPrimary: false,
+    },
+  });
+};
+
+export const getBankAccountsByStoreIdService = async (storeId: string) => {
+  return await prisma.bankAccount.findMany({
+    where: {
+      storeId,
+      isActive: true,
+    },
+    include: bankAccountInclude,
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+};
+
+export const findBankAccountById = async (storeId: string, id: string) => {
+  return await prisma.bankAccount.findFirst({
+    where: {
+      id,
+      storeId,
+      isActive: true,
+    },
+    include: bankAccountInclude,
+  });
+};
+
+export const findAnyBankAccountByStoreId = async (storeId: string) => {
+  return await prisma.bankAccount.findUnique({
+    where: {
+      storeId,
+      isActive: true,
+    },
+    include: bankAccountInclude,
+  });
+};
+
+export const createBankAccountService = async (data: Prisma.BankAccountUncheckedCreateInput) => {
+  return await prisma.bankAccount.create({
+    data,
+    include: bankAccountInclude,
+  });
+};
+
+export const updateBankAccountService = async (id: string, data: Prisma.BankAccountUncheckedUpdateInput) => {
+  return await prisma.bankAccount.update({
+    where: {
+      id,
+    },
+    data,
+    include: bankAccountInclude,
+  });
+};
+
+export const deleteBankAccountService = async (id: string) => {
+  return await prisma.bankAccount.update({
+    where: {
+      id,
+    },
+    data: {
+      isActive: false,
     },
   });
 };
