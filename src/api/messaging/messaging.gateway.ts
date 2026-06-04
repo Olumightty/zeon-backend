@@ -1,1 +1,1 @@
-//payment and escrows
+// websocket for realtime messaging

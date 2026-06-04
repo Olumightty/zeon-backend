@@ -294,6 +294,54 @@ export const findPaymentIntentById = async (id: string, auth: AuthUser) => {
   });
 };
 
+export const findPaymentIntentByProviderReference = async (providerReference: string) => {
+  return await prisma.paymentIntent.findUnique({
+    where: {
+      providerReference,
+    },
+    include: paymentIntentInclude,
+  });
+};
+
+export const markPaymentIntentPaidService = async (
+  id: string,
+  data: {
+    heldAmountMinor: bigint;
+    releaseCondition?: string;
+  },
+) => {
+  return await prisma.$transaction(async (tx) => {
+    const paymentIntent = await tx.paymentIntent.update({
+      where: {
+        id,
+      },
+      data: {
+        status: "PAID",
+      },
+      include: paymentIntentInclude,
+    });
+
+    await tx.escrowRecord.upsert({
+      where: {
+        paymentIntentId: id,
+      },
+      update: {
+        status: "HOLDING",
+        heldAmountMinor: data.heldAmountMinor,
+        releaseCondition: data.releaseCondition || null,
+      },
+      create: {
+        paymentIntentId: id,
+        status: "HOLDING",
+        heldAmountMinor: data.heldAmountMinor,
+        releaseCondition: data.releaseCondition || null,
+      },
+    });
+
+    return paymentIntent;
+  });
+};
+
 export const cancelPaymentIntentService = async (id: string, auth: AuthUser) => {
   const paymentIntent = await findPaymentIntentById(id, auth);
   if (!paymentIntent) {

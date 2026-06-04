@@ -11,7 +11,7 @@ router.post('/webhook', isFromKora, async (req: Request, res: Response) => {
 
     switch(event) {
         case 'charge.success':
-            //the function handles the charge success event, the metadata carries the payment intentId, the paymentIntent (new status becomes paid) and cargoallocation (new status becomes pending_pooling) in the db will be updated in status, these updates are called from cargo.service.ts and payment.service.ts respectively
+            //the function handles the charge success event, the data reference points to a payment intent, the paymentIntent (new status becomes paid) and cargoallocation (new status becomes pending_pooling) in the db will be updated in status, these updates are called from cargo.service.ts (markCargoAllocationPendingPoolingService) and payment.service.ts (markPaymentIntentPaidService) respectively
             await chargeSuccess(data);
             break
         case 'transfer.success':

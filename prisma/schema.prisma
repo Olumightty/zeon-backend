@@ -83,6 +83,12 @@ enum VesselType {
   TRAIN
 }
 
+enum PortType {
+  SEA
+  AIR
+  LAND
+}
+
 enum CargoPoolStatus {
   DRAFT
   OPEN
@@ -140,8 +146,13 @@ enum MessageDirection {
 
 enum MessageSenderType {
   USER
-  TRADE_PARTNER
   SYSTEM
+}
+
+enum ConversationParticipantRole {
+  REQUESTER
+  RESPONDER
+  ASSIGNEE
 }
 
 enum PricingUnit {
@@ -217,8 +228,7 @@ model Organization {
   tradePartners          TradePartner[]
   buyerAllocations       CargoAllocation[]
   paymentIntents         PaymentIntent[]
-  outgoingConversations  Conversation[]          @relation("ConversationOwner")
-  incomingConversations  Conversation[]          @relation("ConversationCounterparty")
+  conversationParticipants ConversationParticipant[]
   webhookEndpoints       WebhookEndpoint[]
   auditLogs              AuditLog[]
   notificationPreference NotificationPreference?
@@ -245,6 +255,7 @@ model User {
   stores                Store[]
   createdAllocations    CargoAllocation[]   @relation("AllocationCreatedBy")
   sentMessages          Message[]
+  conversationParticipants ConversationParticipant[]
   auditLogs             AuditLog[]
   authoredRelationships TradeRelationship[] @relation("RelationshipCreatedBy")
   paymentIntents        PaymentIntent[]
@@ -346,8 +357,6 @@ model TradePartner {
 
   organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  conversations Conversation[]
-  sentMessages  Message[]      @relation("MessageTradePartnerSender")
 
   @@unique([storeId, email])
   @@index([organizationId])
@@ -425,6 +434,7 @@ model Port {
   id          String   @id @default(cuid())
   code        String   @unique @db.VarChar(10)
   name        String
+  type        PortType 
   countryCode String   @db.Char(2)
   lat         Decimal  @db.Decimal(9, 6)
   lng         Decimal  @db.Decimal(9, 6)
@@ -667,51 +677,64 @@ model ManifestDocument {
 }
 
 model Conversation {
-  id                         String             @id @default(cuid())
-  organizationId             String
-  counterpartyOrganizationId String
-  storeId                    String
-  productId                  String?
-  tradePartnerId             String
-  subject                    String
-  status                     ConversationStatus @default(OPEN)
-  lastMessageAt              DateTime?
-  createdAt                  DateTime           @default(now())
-  updatedAt                  DateTime           @updatedAt
+  id            String             @id @default(cuid())
+  storeId       String?
+  productId     String?
+  subject       String
+  status        ConversationStatus @default(OPEN)
+  lastMessageAt DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
-  organization             Organization @relation("ConversationOwner", fields: [organizationId], references: [id], onDelete: Cascade)
-  counterpartyOrganization Organization @relation("ConversationCounterparty", fields: [counterpartyOrganizationId], references: [id], onDelete: Cascade)
-  store                    Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  product                  Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
-  tradePartner             TradePartner @relation(fields: [tradePartnerId], references: [id], onDelete: Restrict)
-  messages                 Message[]
+  store        Store?                    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  product      Product?                  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  participants ConversationParticipant[]
+  messages     Message[]
 
-  @@index([organizationId])
-  @@index([counterpartyOrganizationId])
   @@index([storeId])
-  @@index([tradePartnerId])
+  @@index([productId])
   @@index([status])
   @@map("conversations")
 }
 
-model Message {
-  id                   String            @id @default(cuid())
-  conversationId       String
-  senderType           MessageSenderType
-  senderUserId         String?
-  senderTradePartnerId String?
-  direction            MessageDirection
-  body                 String
-  sentAt               DateTime          @default(now())
-  readAt               DateTime?
+model ConversationParticipant {
+  id             String                      @id @default(cuid())
+  conversationId String
+  userId         String?
+  organizationId String?
+  role           ConversationParticipantRole
+  lastReadAt     DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
 
-  conversation       Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderUser         User?         @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
-  senderTradePartner TradePartner? @relation("MessageTradePartnerSender", fields: [senderTradePartnerId], references: [id], onDelete: SetNull)
+  conversation Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@unique([conversationId, organizationId])
+  @@index([conversationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([role])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String            @id @default(cuid())
+  conversationId String
+  senderType     MessageSenderType
+  senderUserId   String?
+  direction      MessageDirection
+  body           String
+  sentAt         DateTime          @default(now())
+  readAt         DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderUser   User?        @relation(fields: [senderUserId], references: [id], onDelete: SetNull)
 
   @@index([conversationId, sentAt])
   @@index([senderUserId])
-  @@index([senderTradePartnerId])
   @@map("messages")
 }
 

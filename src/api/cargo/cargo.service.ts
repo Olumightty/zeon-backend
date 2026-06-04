@@ -310,3 +310,15 @@ export const cancelCargoAllocationService = async (id: string, auth: AuthUser) =
     });
   });
 };
+
+export const markCargoAllocationPendingPoolingService = async (id: string) => {
+  return await prisma.cargoAllocation.update({
+    where: {
+      id,
+    },
+    data: {
+      status: "PENDING_POOLING",
+    },
+    include: cargoAllocationInclude,
+  });
+};

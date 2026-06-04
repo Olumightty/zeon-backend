@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express, { type Request, type Response } from 'express';
 import morgan from 'morgan';
-// import * as messagingRoute from './api/messaging/messaging.route';
+import * as messagingRoute from './api/messaging/messaging.route';
 import * as shipmentRoute from './api/shipment/shipment.route';
 // import * as trackingWebhook from './webhooks/tracking.webhook';
 import * as koraWebhook from './webhooks/kora.webhook';
@@ -43,8 +43,7 @@ app.use('/api/cargo', authGuard, cargoRoute.default)
 app.use('/api/payment', authGuard, paymentRoute.default);
 app.use('/api/carrier', authGuard, carrierRoute.default);
 app.use('/api/shipment', authGuard, shipmentRoute.default);
-
-// app.use('/api/messaging', messagingRoute.default);
+app.use('/api/messaging', authGuard, messagingRoute.default);
 // app.use('/tracking', trackingWebhook.default);
 
 
