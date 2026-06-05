@@ -93,6 +93,7 @@ export const createCargoAllocation = async (req: Request, res: Response) => {
     const cargoAllocation = await createCargoAllocationService(auth, {
       storeId: req.body.storeId,
       currencyCode: req.body.currencyCode || store.currencyCode,
+      deliveryAddress: req.body.deliveryAddress,
       items: req.body.items,
     });
 
@@ -302,6 +303,7 @@ export const updateCargoAllocation = async (req: Request, res: Response) => {
     const result = await updateCargoAllocationService(getParam(req, "id"), auth, {
       ...(req.body.storeId !== undefined && { storeId: req.body.storeId }),
       ...(req.body.currencyCode !== undefined && { currencyCode: req.body.currencyCode }),
+      ...(req.body.deliveryAddress !== undefined && { deliveryAddress: req.body.deliveryAddress }),
       ...(req.body.items !== undefined && { items: req.body.items }),
     });
 

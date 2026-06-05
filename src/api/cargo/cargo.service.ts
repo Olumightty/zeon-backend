@@ -153,6 +153,7 @@ export const createCargoAllocationService = async (
   data: {
     storeId: string;
     currencyCode: string;
+    deliveryAddress: Record<any, any>;
     items: CargoItemInput[];
   },
 ) => {
@@ -168,6 +169,7 @@ export const createCargoAllocationService = async (
         storeId: data.storeId,
         status: "DRAFT",
         currencyCode: data.currencyCode,
+        deliveryAddress: data.deliveryAddress,
         items: {
           create: data.items.map((item) => {
             const product = productById.get(item.productId);
@@ -192,6 +194,7 @@ export const updateCargoAllocationService = async (
   data: {
     storeId?: string;
     currencyCode?: string;
+    deliveryAddress?: Record<any, any>
     items?: CargoItemInput[];
   },
 ) => {
@@ -228,6 +231,7 @@ export const updateCargoAllocationService = async (
       data: {
         ...(data.storeId !== undefined && { storeId: data.storeId }),
         ...(data.currencyCode !== undefined && { currencyCode: data.currencyCode }),
+        ...(data.deliveryAddress !== undefined && { deliveryAddress: data.deliveryAddress }),
         ...(data.items && {
           items: {
             create: data.items.map((item) => {

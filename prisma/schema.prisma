@@ -538,17 +538,19 @@ model CargoPool {
 }
 
 model CargoAllocation {
-  id                String         @id @default(cuid())
-  organizationId    String?
-  cargoPoolId       String?
-  storeId           String
-  status            ShipmentStatus @default(PENDING_POOLING)
-  quotedAmountMinor BigInt?
-  finalAmountMinor  BigInt?
-  currencyCode      String         @db.Char(3)
-  createdByUserId   String?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  id                  String         @id @default(cuid())
+  organizationId      String?
+  cargoPoolId         String?
+  storeId             String
+  status              ShipmentStatus @default(DRAFT)
+  quotedAmountMinor   BigInt?
+  finalAmountMinor    BigInt?
+  currencyCode        String         @db.Char(3)
+  createdByUserId     String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  deliveryAddress     Json         @default("{}") // { street, city, state, postalCode, country }
 
   organization        Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cargoPool           CargoPool?            @relation(fields: [cargoPoolId], references: [id], onDelete: Restrict)

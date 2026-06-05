@@ -58,6 +58,18 @@ export const getCargoAllocationsValidator = [
 export const createCargoAllocationValidator = [
   body("storeId").trim().notEmpty().escape(),
   body("currencyCode").optional().trim().toUpperCase().isLength({ min: 3, max: 3 }),
+  body("deliveryAddress")
+    .custom((value, { req }) => {
+        if (value !== undefined && (typeof value !== "object" || Array.isArray(value))) {
+          throw new Error("deliveryAddress must be an object.");
+        }
+  
+        if(!value.country || !value.city || !value.street || !value.postalCode || !value.fullAddress) {
+          throw new Error("deliveryAddress must include country, city, street, postalCode, and fullAddress");
+        }
+  
+        return true;
+    }),
   body("items").isArray({ min: 1 }),
   body("items.*.productId").trim().notEmpty().escape(),
   body("items.*.quantity").isFloat({ gt: 0 }).toFloat(),
@@ -69,6 +81,19 @@ export const updateCargoAllocationValidator = [
   param("id").trim().notEmpty().escape(),
   body("storeId").optional().trim().notEmpty().escape(),
   body("currencyCode").optional().trim().toUpperCase().isLength({ min: 3, max: 3 }),
+  body("deliveryAddress")
+    .optional()
+    .custom((value, { req }) => {
+        if (value !== undefined && (typeof value !== "object" || Array.isArray(value))) {
+          throw new Error("deliveryAddress must be an object.");
+        }
+  
+        if(!value.country || !value.city || !value.street || !value.postalCode || !value.fullAddress) {
+          throw new Error("deliveryAddress must include country, city, street, postalCode, and fullAddress.");
+        }
+  
+        return true;
+    }),
   body("items").optional().isArray({ min: 1 }),
   body("items.*.productId").optional().trim().notEmpty().escape(),
   body("items.*.quantity").optional().isFloat({ gt: 0 }).toFloat(),
