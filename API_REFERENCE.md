@@ -411,6 +411,13 @@ Create a draft cargo allocation.
 {
   "storeId": "store_id",
   "currencyCode": "NGN",
+  "deliveryAddress": {
+    "country": "Nigeria",
+    "city": "Abuja",
+    "postal_code": "901108",
+    "street": "45 street",
+    "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
+  },
   "items": [
     {
       "productId": "product_id",
@@ -476,6 +483,13 @@ Update a draft cargo allocation. Only allowed while status is `DRAFT` and any at
 {
   "storeId": "store_id",
   "currencyCode": "NGN",
+  "deliveryAddress": {
+    "country": "Nigeria",
+    "city": "Abuja",
+    "postal_code": "901108",
+    "street": "45 street",
+    "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
+  },
   "items": [
     {
       "productId": "product_id",
@@ -1367,6 +1381,13 @@ This endpoint returns no `data` field.
   "quotedAmountMinor": null,
   "finalAmountMinor": null,
   "currencyCode": "NGN",
+  "deliveryAddress": {
+    "country": "Nigeria",
+    "city": "Abuja",
+    "postal_code": "901108",
+    "street": "45 street",
+    "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
+  },
   "createdByUserId": "user_123",
   "store": {
     "id": "store_123",
@@ -1400,6 +1421,13 @@ This endpoint returns no `data` field.
       "id": "allocation_123",
       "status": "DRAFT",
       "currencyCode": "NGN",
+      "deliveryAddress": {
+        "country": "Nigeria",
+        "city": "Abuja",
+        "postal_code": "901108",
+        "street": "45 street",
+        "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
+      },
       "store": {
         "id": "store_123",
         "name": "Lagos Components"
@@ -1465,6 +1493,13 @@ This endpoint returns no `data` field.
   "id": "allocation_123",
   "status": "AWAITING_PAYMENT",
   "currencyCode": "NGN",
+  "deliveryAddress": {
+    "country": "Nigeria",
+    "city": "Abuja",
+    "postal_code": "901108",
+    "street": "45 street",
+    "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
+  },
   "store": {
     "id": "store_123",
     "name": "Lagos Components"
@@ -1491,6 +1526,13 @@ This endpoint returns no `data` field.
   "id": "allocation_123",
   "status": "DRAFT",
   "currencyCode": "NGN",
+  "deliveryAddress": {
+    "country": "Nigeria",
+    "city": "Abuja",
+    "postal_code": "901108",
+    "street": "45 street",
+    "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
+  },
   "items": [
     {
       "id": "allocation_item_456",
