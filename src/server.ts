@@ -18,19 +18,21 @@ import cors from 'cors'
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-app.use(cors({
-  credentials: true,
-  origin: process.env.WEB_CLIENT_URL || 'http://localhost:3000',
-  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: [
-    "Content-Type", 
-    "Authorization", 
-    'x-korapay-signature', 
-    'svix-signature', 
-    'svix-timestamp', 
-    'svix-id',
-  ],
-}))
+app.use(cors(
+//   {
+//   credentials: true,
+//   origin: [process.env.WEB_CLIENT_URL!, 'http://localhost:3000', 'http://localhost:3001'],
+//   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: [
+//     "Content-Type", 
+//     "Authorization", 
+//     'x-korapay-signature', 
+//     'svix-signature', 
+//     'svix-timestamp', 
+//     'svix-id',
+//   ],
+// }
+))
 
 app.use(morgan('dev')); // Log HTTP requests in development mode
 app.set('trust proxy', 1);

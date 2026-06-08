@@ -411,13 +411,6 @@ Create a draft cargo allocation.
 {
   "storeId": "store_id",
   "currencyCode": "NGN",
-  "deliveryAddress": {
-    "country": "Nigeria",
-    "city": "Abuja",
-    "postal_code": "901108",
-    "street": "45 street",
-    "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
-  },
   "items": [
     {
       "productId": "product_id",
@@ -452,6 +445,13 @@ Generate or update landed cost breakdown for a draft allocation. This does not c
 ```json
 {
   "allocationId": "cargo_allocation_id",
+  "deliveryAddress": {
+    "country": "Nigeria",
+    "city": "Abuja",
+    "postalCode": "901108",
+    "street": "45 street",
+    "fullAddress": "45 strt, queen park estate, Abuja, Nigeria"
+  },
   "tariffRateBps": 500,
   "customsFeeMinor": 150000,
   "vatRateBps": 750,
