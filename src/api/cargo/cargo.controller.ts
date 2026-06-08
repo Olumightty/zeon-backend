@@ -161,6 +161,7 @@ export const checkoutCargoAllocation = async (req: Request, res: Response) => {
     }
 
     const landedCostBreakdown = await createLandedCostBreakdownService(cargoAllocation, {
+      deliveryAddress: req.body.deliveryAddress,
       tariffRateBps: req.body.tariffRateBps,
       customsFeeMinor: req.body.customsFeeMinor,
       vatRateBps: req.body.vatRateBps,

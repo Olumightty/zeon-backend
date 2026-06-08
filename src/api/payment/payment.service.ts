@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { updateCargoAllocationService } from "../cargo/cargo.service";
 import { createPayIn } from "./payment.provider";
 
 type AuthUser = {
@@ -7,6 +8,7 @@ type AuthUser = {
 };
 
 type CheckoutCostInput = {
+  deliveryAddress: Record<any, any>;
   tariffRateBps?: number;
   customsFeeMinor?: number;
   vatRateBps?: number;
@@ -142,33 +144,45 @@ export const createLandedCostBreakdownService = async (
   const vatAmountMinor = minorFromBps(baseCostMinor + tariffAmountMinor + customsFeeMinor + otherFeeMinor, vatRateBps);
   const totalAmountMinor = baseCostMinor + tariffAmountMinor + customsFeeMinor + vatAmountMinor + otherFeeMinor;
 
-  return await prisma.landedCostBreakdown.upsert({
-    where: {
-      cargoAllocationId: cargoAllocation.id,
-    },
-    update: {
-      baseCostMinor,
-      tariffRateBps,
-      tariffAmountMinor,
-      customsFeeMinor,
-      vatRateBps,
-      vatAmountMinor,
-      otherFeeMinor,
-      totalAmountMinor,
-      currencyCode: cargoAllocation.currencyCode,
-    },
-    create: {
-      cargoAllocationId: cargoAllocation.id,
-      baseCostMinor,
-      tariffRateBps,
-      tariffAmountMinor,
-      customsFeeMinor,
-      vatRateBps,
-      vatAmountMinor,
-      otherFeeMinor,
-      totalAmountMinor,
-      currencyCode: cargoAllocation.currencyCode,
-    },
+
+  return await prisma.$transaction(async (tx) => {
+      await tx.cargoAllocation.update({
+        where: {
+          id: cargoAllocation.id,
+        },
+        data: {
+          deliveryAddress: input.deliveryAddress,
+        },
+      });
+      
+      await tx.landedCostBreakdown.upsert({
+        where: {
+          cargoAllocationId: cargoAllocation.id,
+        },
+        update: {
+          baseCostMinor,
+          tariffRateBps,
+          tariffAmountMinor,
+          customsFeeMinor,
+          vatRateBps,
+          vatAmountMinor,
+          otherFeeMinor,
+          totalAmountMinor,
+          currencyCode: cargoAllocation.currencyCode,
+        },
+        create: {
+          cargoAllocationId: cargoAllocation.id,
+          baseCostMinor,
+          tariffRateBps,
+          tariffAmountMinor,
+          customsFeeMinor,
+          vatRateBps,
+          vatAmountMinor,
+          otherFeeMinor,
+          totalAmountMinor,
+          currencyCode: cargoAllocation.currencyCode,
+        },
+      });
   });
 };
 

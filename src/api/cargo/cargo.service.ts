@@ -153,7 +153,7 @@ export const createCargoAllocationService = async (
   data: {
     storeId: string;
     currencyCode: string;
-    deliveryAddress: Record<any, any>;
+    deliveryAddress?: Record<any, any> | undefined;
     items: CargoItemInput[];
   },
 ) => {
