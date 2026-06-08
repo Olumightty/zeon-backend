@@ -145,7 +145,7 @@ export const createLandedCostBreakdownService = async (
   const totalAmountMinor = baseCostMinor + tariffAmountMinor + customsFeeMinor + vatAmountMinor + otherFeeMinor;
 
 
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
       await tx.cargoAllocation.update({
         where: {
           id: cargoAllocation.id,
@@ -155,7 +155,7 @@ export const createLandedCostBreakdownService = async (
         },
       });
       
-      await tx.landedCostBreakdown.upsert({
+      return await tx.landedCostBreakdown.upsert({
         where: {
           cargoAllocationId: cargoAllocation.id,
         },
@@ -184,6 +184,8 @@ export const createLandedCostBreakdownService = async (
         },
       });
   });
+
+  return result
 };
 
 export const updateCostBreakdownService = async (
