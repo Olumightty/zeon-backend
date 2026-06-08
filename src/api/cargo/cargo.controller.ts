@@ -81,6 +81,14 @@ export const createCargoAllocation = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Store not found", status: false });
     }
 
+    if(store.organizationId && store.organizationId == auth.orgId) {
+      return res.status(403).json({ message: "You cannot create cargo allocation for your own store", status: false });
+    }
+
+    if(store.userId && store.userId == auth.userId) {
+      return res.status(403).json({ message: "You cannot create cargo allocation for your own store", status: false });
+    }
+
     if (hasDuplicateProducts(req.body.items)) {
       return res.status(400).json({ message: "Duplicate products are not allowed in one cargo allocation", status: false });
     }
